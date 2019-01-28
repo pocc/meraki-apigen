@@ -1,6 +1,6 @@
 # Keep passwords safe
-_keys.py
-meraki_api.py
+*keys.*
+meraki_api.*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
