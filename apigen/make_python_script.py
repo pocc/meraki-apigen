@@ -21,6 +21,7 @@ def get_python_func(func_name, func_desc, func_args,
     """Generate a python function given the paramaters."""
     params_should_be_in_url = req_http_type in ['GET', 'DELETE']
     if 'params' in func_args:
+        func_desc += '\n    '
         if params_should_be_in_url:
             func_urlencoded_query = """
     # urlencode gives us & when query needs ?
@@ -38,7 +39,7 @@ def get_python_func(func_name, func_desc, func_args,
         func_urlencoded_query = ''
         req_data = ''
     function_text = """\ndef {0}({1}):
-    \"\"\"{2}.\"\"\"{3}
+    \"\"\"{2}\"\"\"{3}
     response = requests.{4}(base_url + {5},{6} headers=headers)
     return json.loads(response.text)\n\n""".format(
         func_name,
