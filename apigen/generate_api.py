@@ -87,7 +87,7 @@ def get_preamble(todays_date, num_api_calls, http_stats, lang):
     """Generate the docstring header at the top of the file."""
     header = """Generated and linted at {}
 Pulled via the Meraki API v0 (https://dashboard.meraki.com/api_docs/)
-API calls: {} {} 
+API calls: {} {}
 
 Meraki API Generator v{}
     Convert all the recently released API calls into [{}] function calls.
@@ -107,27 +107,20 @@ def make_snake_case(input_string):
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', temp_string).lower()
 
 
-def get_params(api_call, api_path):
-    """Get all of the params for a function
+def get_args_str(api_path, params):
+    """Get all of the arguments for a function
 
     In a path, sometimes [networkId] or [organizationId] is just [id].
     Change [id] to the correct longer form. Then get all as parameters.
-
-    Also get all parameters from api_call['param'] if any exist.
     """
-    # Get everything in [brackets]
-    params = re.findall(r'[\[{]([A-Za-z_]*)[\]}]', api_path) or []
-    # Param text is of the form 'param1, param2, param3' for func call
-    # params sometimes is not a key in the JSON
-    # params sometimes has a value of None
-    if 'params' in api_call and api_call['params']:
-        for param in api_call['params']:
-            params.append(param['name'])
+    # Get everything in [brackets] in url.
+    args = re.findall(r'[\[{]([A-Za-z_]*)[\]}]', api_path) or []
+    for index, arg in enumerate(args):
+        args[index] = make_snake_case(arg)
+    if params:
+        args += ['params']
 
-    for index, param in enumerate(params):
-        params[index] = make_snake_case(param)
-
-    return params
+    return ', '.join(args)
 
 
 def get_formatted_url(api_call_path, params):
@@ -142,18 +135,6 @@ def get_formatted_url(api_call_path, params):
 
     formatted_path = "'{}'.format({})".format(temp_path, func_vars)
     return formatted_path
-
-
-def get_dict_str(params):
-    """Get a dict for parameters that can be later formatted.
-
-    Ex. Given params ['time', 'speed'], returned dict would be
-    {{"time": {}, "speed": {} }} so .format can be used.
-    """
-    param_list = []
-    for param in params:
-        param_list += ['"' + param + '": {}']
-    return '{{' + ', '.join(param_list) + '}}'
 
 
 def generate_api_call_name(http_type, api_path):
@@ -224,20 +205,22 @@ def main():
 
         api_path = re.sub(r'/([A-Za-z_]*?)/\[id\]', r'/[\1_id]',
                           api_call['path'])
-        params = get_params(api_call, api_path)
-        if api_call['http_type'] in ['GET', 'DELETE']:
+        # params sometimes has a value of None or is not a key at all
+        params = {}
+        if 'params' in api_call and api_call['params']:
+            params = api_call['params']
+        api_calls[index]['gen_args'] = get_args_str(api_path, params)
+        if api_call['http_method'] in ['GET', 'DELETE']:
             # If get/delete, then params will be appended to url as ?key=value
             api_calls[index]['gen_formatted_url'] = \
-                get_formatted_url(api_path, api_call['params'])
+                get_formatted_url(api_path, [])
             api_calls[index]['gen_data'] = ''
         else:
-            # If put/post, then params will be sent as a dict {'key': 'value'}
+            # If put/post, then params will be requests' data={'key': 'value'}
             api_calls[index]['gen_formatted_url'] = \
-                get_formatted_url(api_path, '')
-            api_calls[index]['gen_data'] = get_dict_str(api_call['params'])
+                get_formatted_url(api_path, [])
+            api_calls[index]['gen_data'] = params
 
-        params = ', '.join(params)  # Comma required after params in call.
-        api_calls[index]['gen_params'] = params
         max_docstring_first_line_length = 72 - 10  # recommended 72 - both """
         # todo Add option for comment-curl
         # todo Add option for make-tests

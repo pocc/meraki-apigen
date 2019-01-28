@@ -16,19 +16,36 @@
 import yapf
 
 
-def get_python_func(func_name, func_desc, func_params,
-                    req_http_type, req_url_format, req_data):
-    """Should work for HTTP GET"""
-    if req_data:  # If data field exists, then add a comma for requests call.
-        req_data += ', '
+def get_python_func(func_name, func_desc, func_args,
+                    req_http_type, req_url_format):
+    """Generate a python function given the paramaters."""
+    params_should_be_in_url = req_http_type in ['GET', 'DELETE']
+    if 'params' in func_args:
+        if params_should_be_in_url:
+            func_urlencoded_query = """
+    # urlencode gives us & when query needs ?
+    url_query = urllib.parse.urlencode(params)
+    url_query = '?' + url_query.replace('&', '?')"""
+            # Add addtional format variable for params arg to be sent in
+            req_url_format = req_url_format.replace("\'.format", "{}\'.format")
+            assert req_url_format.count(')') < 2  # Should only be format )
+            req_url_format = req_url_format.replace(')', ', url_query)')
+            req_data = ''
+        else:  # req_http_type in ['PUT', 'POST'], data in requests body
+            func_urlencoded_query = ''
+            req_data = 'data=params, '
+    else:
+        func_urlencoded_query = ''
+        req_data = ''
     function_text = """\ndef {0}({1}):
-    \"\"\"{2}.\"\"\"
-    response = requests.{3}(base_url + {4},{5} headers=headers)
+    \"\"\"{2}.\"\"\"{3}
+    response = requests.{4}(base_url + {5},{6} headers=headers)
     return json.loads(response.text)\n\n""".format(
         func_name,
-        func_params,
+        func_args,
         func_desc,
-        req_http_type,
+        func_urlencoded_query,
+        req_http_type.lower(),
         req_url_format,
         req_data
     )
@@ -40,21 +57,19 @@ def make_python_script(api_key, api_calls, preamble):
     generated_text = """\
 # -*- coding: utf-8 -*-
 \"\"\"{}\"\"\"
-import json\nimport requests\n
+import json\nimport requests\nimport urllib.parse\n
 base_url = 'https://api.meraki.com/api/v0'
 headers = {{
     'X-Cisco-Meraki-API-Key': '{}',
     'Content-Type': 'application/json'
 }}\n\n""".format(preamble, api_key)
     for api_call in api_calls:
-        if api_call['http_method'] == 'GET':
-            generated_text += get_python_func(
-                func_name=api_call['gen_api_name'],
-                func_desc=api_call['gen_func_desc'],
-                func_params=api_call['gen_params'],
-                req_http_type=api_call['http_method'].lower(),
-                req_url_format=api_call['gen_formatted_url'],
-                req_data=api_call['gen_data'])
+        generated_text += get_python_func(
+            func_name=api_call['gen_api_name'],
+            func_desc=api_call['gen_func_desc'],
+            func_args=api_call['gen_args'],
+            req_http_type=api_call['http_method'],
+            req_url_format=api_call['gen_formatted_url'])
     linted_text = yapf.yapf_api.FormatCode(
         unformatted_source=generated_text,
         style_config='pep8',
