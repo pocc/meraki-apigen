@@ -27,6 +27,7 @@ def make_function(func_name, func_desc, func_args,
     if func_args:  # If there is more than the function description, +newline
         func_desc += '\n    '
     if 'params' in func_args:
+        func_args = func_args.replace('params', 'params=\'\'')
         if params_should_be_in_url:
             func_urlencoded_query = """
     # urlencode gives us & when query needs ?
@@ -34,19 +35,19 @@ def make_function(func_name, func_desc, func_args,
     url_query = '?' + url_query.replace('&', '?')"""
             # Add addtional format variable for params arg to be sent in
             req_url_format = req_url_format.replace("\'.format", "{}\'.format")
-            assert req_url_format.count(')') < 2  # Should only be format )
+            assert req_url_format.count(')') <= 1  # Should only be format's )
             req_url_format = req_url_format.replace(')', ', url_query)')
             req_data = ''
         else:  # req_http_type in ['PUT', 'POST'], data in requests body
             func_urlencoded_query = ''
-            req_data = 'data=params, '
+            req_data = 'data=json.dumps(params), '
     else:
         func_urlencoded_query = ''
         req_data = ''
     function_text = """\ndef {0}({1}):
     \"\"\"{2}\"\"\"{3}
     response = requests.{4}(BASE_URL + {5},{6} headers=HEADERS)
-    return json.loads(response.text)""".format(
+    return graceful_exit(response)""".format(
         func_name,
         func_args,
         func_desc,
@@ -129,7 +130,35 @@ BASE_URL = 'https://api.meraki.com/api/v0'
 HEADERS = {{
     'X-Cisco-Meraki-API-Key': '{}',
     'Content-Type': 'application/json'
-}}\n\n""".format(preamble, api_key)
+}}
+
+
+def graceful_exit(response):
+    \"\"\"Gracefully exit from the function.
+    
+    JSON:
+        200: Successful GET, UPDATE
+        201: Successful POST
+    
+    {{}}:
+        204: Successful DELETE
+        404: Bad request. Correct or add to your params.
+        500: Server error.
+    
+    Args:
+        response (Requests): The requests object from the function call.
+    Returns:
+        JSON if one is available. Return status code (int) if not.
+    \"\"\"
+    try:
+        resp_json = json.loads(response.text)
+        if 'errors' in resp_json:
+            raise ConnectionError(resp_json['errors'])
+        resp_json['status_code'] = response.status_code
+        return resp_json
+    except ValueError:
+        return response.status_code
+""".format(preamble, api_key)
     if 'classy' in options:
         generated_text += make_classy(api_calls)
     else:

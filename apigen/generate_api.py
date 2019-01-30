@@ -25,8 +25,6 @@ DESCRIPTION:
     Python or Ruby. As new API calls are released all the time, rerun
     this occasionally.
 
-    This is a work in progress and things are expected to break.
-
 OPTIONS:
   --key <apikey>        Your API key. You can find it by going to your profile.
   --language <name>     Create a script in language. Valid options are
@@ -53,6 +51,7 @@ import textwrap
 import requests
 import yapf
 import docopt
+import inflection as inf
 
 import apigen
 import apigen.make_bash_script as mbs
@@ -64,7 +63,7 @@ API_PRIMITIVES = {
     'org_id': '(eg 212406)' + '\n' + 12*' ' + '↳ get_orgs()',
     'network_id': '(eg N_24329156)' + '\n' + 12*' ' +
                   '↳ get_networks_by_org_id(org_id)',
-    'admin_id': '(eg 212406)' +
+    'admin_id': '(eg 545173)' +
                 '\n' + 12*' ' + '↳  get_admins_by_org_id(org_id)',
     'sr_id': 'Static route ID like d7fa4948-7921-4dfa-af6b-ae8b16c20c39\n' +
              12*' ' + '↳ get_static_routes_by_network_id(network_id)',
@@ -96,7 +95,7 @@ API_PRIMITIVES = {
                        '\n' + 16*' ' + 'https://documentation.meraki.com/z'
                        '\n' + 16*' ' + 'General_Administration/Other_Topics/'
                        'Webhooks\n' + 12*' ' +
-                       '↳ post_http_servers_webhook_tests_by_network_id('
+                       '↳ create_http_servers_webhook_tests_by_network_id('
                        '\n' + 16*' ' + 'network_id, params)',
     'meraki_auth_user_id': 'Splash or RADIUS user hash (eg aGlAaGkuY29t)' +
                            '\n' + 12*' ' + '↳ get_meraki_auth_users_by_'
@@ -119,7 +118,7 @@ API_PRIMITIVES = {
     'client_id': 'Client ID Hash (eg k74272e)\n' + 12*' ' +
                  '↳ get_clients_by_serial(serial)',
     'profile_id': 'Cisco Clarity Profile ID (eg 12345)' + '\n' + 12*' ' +
-                  '↳ post_profile_clarity_by_network_id(network_id, params)',
+                  '↳ create_profile_clarity_by_network_id(network_id, params)',
     'app_id': 'SM Cisco Polaris app ID (eg 123456)\n' + 12*' ' +
               '↳ get_app_polaris_by_network_id(network_id, params)',
     'sm_id': '???\n' + 12*' ' + '↳ ???',
@@ -129,6 +128,8 @@ API_PRIMITIVES = {
                '\n' + 12*' ' + '↳ get_vlans_by_network_id(network_id)',
     'switch_port_number': 'like (1-48)\n' + 12*' ' +
                           '↳ get_switch_ports_by_serial(serial)',
+    'params': 'Dict/JSON of options like\n' + 12*' ' +
+              '{"key": val, "array": [{"key": val}, ...], ...}.'
 }
 
 
@@ -156,11 +157,11 @@ Pulled via the Meraki API v0 (https://dashboard.meraki.com/api_docs/)
 API calls: {} {}
 
 Meraki API Generator v{}
-    Convert all the recently released API calls into [{}] function calls.
+    Convert all Meraki API calls into [{}] function calls.
     As new API calls are released all the time, rerun this occasionally.
 
 More Info
-    Contact: Ross Jacobs (rosjacob [AT] cisco.com)
+    Author: Ross Jacobs (rosjacob [AT] cisco.com)
     Github: https://github.com/pocc/meraki-apigen
     Issues: https://github.com/pocc/meraki-apigen/issues
 """.format(todays_date, num_api_calls, http_stats, apigen.__version__, lang)
@@ -179,8 +180,11 @@ def get_path_args(api_path, has_params):
     In a path, sometimes [networkId] or [organizationId] is just [id].
     Change [id] to the correct longer form. Then get all as parameters.
     """
+    # Replace /variable/id wih /variable_id
+    api_path = re.sub(r'/([A-Za-z_]*?)/\[id\]', r'/[\1_id]', api_path)
     # Get everything in [brackets] in url.
     args = re.findall(r'[\[{]([A-Za-z_]*)[\]}]', api_path) or []
+
     for index, arg in enumerate(args):
         if 'organization' in arg:
             arg = arg.replace('organization', 'org')
@@ -205,57 +209,56 @@ def get_formatted_url(api_call_path, has_params):
     # The variables that will end up being in the function
     func_vars = ', '.join(get_path_args(api_call_path, has_params))
     func_vars = make_snake_case(func_vars)
-    temp_path = re.sub(r'[\[{][A-Za-z_]*[\]}]', '{}', api_call_path)
+    temp_path = re.sub(r'[\[{][A-Za-z_-]*[\]}]', '{}', api_call_path)
 
     formatted_path = "'{}'.format({})".format(temp_path, func_vars)
     return formatted_path
 
 
 def generate_api_call_name(http_type, api_path):
-    """Get the API call name as a unique one is not provided."""
-    http_type = http_type
-    full_path_name_with_empties = api_path.split('/')
-    # Sometimes an API call will end with '/'.
-    path_name_words = list(filter(None, full_path_name_with_empties))
-    api_name_part = ''
-    for idx, word in enumerate(path_name_words):
-        # For /organizations/[organization_id]/admins/[id]
-        # we get get_admin_id_by_org_id
-        if word[0] in ['[', '{'] and idx + 1 < len(path_name_words):
-            by_var = word[1:-1]  # strip square brackets
-            if word == '[id]':  # Make 'id' more descriptive
-                by_var = path_name_words[idx-1] + '_id'
-            if word == '[number]':
-                by_var = path_name_words[idx-1] + '_number'
-            api_name_part += '_by_' + by_var
-    # Last words of the path are usually the target of the API call
-    # so put them first.
-    api_call_name = get_path_last_words(path_name_words) + api_name_part
-    api_call_name = api_call_name.replace('organization', 'org')  # Simplify
+    """Generate the API call name as a unique one is not provided."""
+    # Use 'create' and 'update' instead of 'post' and 'put' for readability.
+    http_type = http_type.replace('POST', 'create').replace('PUT', 'update')
+    http_type = http_type.lower()
+    api_path = api_path.replace('organization', 'org')
+    path_words = list(filter(None, api_path.split('/')))
 
-    if not api_call_name:
-        api_call_name = path_name_words[-1]
-    api_call_name = http_type.lower() + '_' + make_snake_case(api_call_name)
-    return api_call_name
+    word_list = []
+    for i, word in enumerate(path_words[::-1]):
+        if word == '[srId]':  # Static route ID
+            word = '[id]'
+        if word == '[service]':  # For FirewalledServices [service] variable
+            word = '[type]'
+        word = inf.underscore(word)
+        is_get = http_type in ['get']
+        if not is_get and 'settings' not in word:
+            word = inf.singularize(word)
+        if word[0] in ['[', '{']:
+            word = word[1:-1]
+            # First word is never [arg]
+            word_before = path_words[::-1][i+1]
+            word_before = inf.singularize(inf.underscore(word_before))
+            # Combines /networks/[networkId] => networkId
+            if word_before not in word:
+                word = word_before + '_' + word
+            if i == 0:
+                if is_get:
+                    word_before = inf.pluralize(word_before)
+                return http_type + '_' + word_before + '_by_' + word
+            if i > 0:
+                if not is_get and 'settings' not in word_list[-1]:
+                    word_list[-1] = inf.singularize(word_list[-1])
+                word_list.insert(0, http_type)
+                return '_'.join(word_list) + '_by_' + word
+        word_list.insert(0, word)
+
+    return http_type + '_' + '_'.join(word_list)
 
 
 def remove_html(target_string):
     """Remove HTML tags from a string."""
     target_string = re.sub(r'<a[\s\S]*?href=[\'\"]', '', target_string)
     return re.sub(r'[\'\"][\s\S]*?a>', '', target_string)
-
-
-def get_path_last_words(path_name_words):
-    """Get the last words of an API path."""
-    # If /**/admins/[id], return 'admins_id'
-    if len(path_name_words) > 1 and path_name_words[-1][0] in ['[', '{']:
-        return path_name_words[-2] + '_' + path_name_words[-1][1:-1]
-    # If /**/[organization_id]/admins or /admins, return 'admins'
-    if len(path_name_words) == 1 or path_name_words[-2][0] in ['[', '{']:
-        return path_name_words[-1]
-    # If /**/clients/latencyStats, return 'clients_latencyStats'
-    # so as to differentiate this function from similar ones.
-    return path_name_words[-2] + '_' + path_name_words[-1]
 
 
 def get_function_parts(api_call, func_args, is_classy):
@@ -271,8 +274,10 @@ def get_function_parts(api_call, func_args, is_classy):
     if func_args:
         new_api_primitives = set(func_args).difference(set(API_PRIMITIVES))
         for primitive in new_api_primitives:
-            API_PRIMITIVES[primitive] = \
-                "Untracked API Primitive. Please create an issue."
+            msg = 'WARNING: Untracked API Primitive: `' + primitive + \
+                  '`. Please create an issue.'
+            API_PRIMITIVES[primitive] = msg
+            print(msg)
         func_desc += '\n\n    args:'
         func_desc += ''.join(['\n        @' + arg + ': ' +
                               API_PRIMITIVES[arg] for arg in func_args])
@@ -308,25 +313,24 @@ def modify_api_calls(args, api_json):
     for index, api_call in enumerate(api_calls):
         api_calls[index]['gen_api_name'] = generate_api_call_name(
             api_call['http_method'], api_call['path'])
+        is_http_get_or_delete = api_call['http_method'] in ['GET', 'DELETE']
 
-        api_path = re.sub(r'/([A-Za-z_]*?)/\[id\]', r'/[\1_id]',
-                          api_call['path'])
         has_params = 'params' in api_call and api_call['params']
-        func_args = get_path_args(api_path, has_params)
+        func_args = get_path_args(api_call['path'], has_params)
         api_calls[index]['gen_func_args'] = ', '.join(func_args)
         func_desc, params =\
             get_function_parts(api_call, func_args, args['--classy'])
         api_calls[index]['gen_func_desc'] = func_desc
 
-        if api_call['http_method'] in ['GET', 'DELETE']:
+        if is_http_get_or_delete:
             # If get/delete, then params will be appended to url as ?key=value
             api_calls[index]['gen_formatted_url'] = \
-                get_formatted_url(api_path, has_params)
+                get_formatted_url(api_call['path'], has_params)
             api_calls[index]['gen_data'] = ''
         else:
             # If put/post, then params will be requests' data={'key': 'value'}
             api_calls[index]['gen_formatted_url'] = \
-                get_formatted_url(api_path, has_params)
+                get_formatted_url(api_call['path'], False)  # No format params
             api_calls[index]['gen_data'] = params
 
     return api_calls
@@ -363,6 +367,7 @@ def main():
     # Reformatting args so that other modules can use options like a dict
     args['textwrap'] = not args['--nowrap']
     options = [arg.replace('--', '') for arg in args if args[arg]]
+    print('Generating a {' + language + '} script')
     if language == 'python':
         mps.make_python_script(api_key, api_calls, preamble, options)
     elif language == 'ruby':
