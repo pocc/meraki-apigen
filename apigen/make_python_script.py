@@ -106,9 +106,8 @@ def lint_output(file):
             self.text += pylint_line
 
     pylint_output = WritableObject()
-    # Disable large file (by design), and too few/many public methods
+    # Disable large file error (by design), and too few/many public methods
     # Some classes will have 1 function and SM has 37.
-    # a simple class with a write method
     pylinter.Run(args=[file, '--disable=C0302,R0903,R0904'],
                  reporter=textreporter.TextReporter(pylint_output),
                  do_exit=False)

@@ -17,7 +17,7 @@
 
 USAGE:
     meraki-apigen (--key <apikey>) [--language <name>]
-                  [--classy] [--lint] [--nowrap]
+                  [--classy] [--lint] [--no-wrap] [--add-sample-resp]
                   [-h | --help] [-v | --version]
 
 DESCRIPTION:
@@ -30,9 +30,11 @@ OPTIONS:
   --language <name>     Create a script in language. Valid options are
                         python, ruby, and bash. Python is the default.
                         For ruby linting, ruby/gem will need to be installed.
-  --classy              Use classes instead of a function list.
-  --lint                Call Pylint. If not 10.00/10, print error text.
-  --nowrap              Do not wrap text to 79 width with yapf.
+  -c, --classy          Use classes instead of a function list.
+  -l, --lint            Call Pylint. If not 10.00/10, print error text.
+  -r, --add-sample-resp
+                        Add the sample response to function documentation.
+  -n, --no-wrap         Do not wrap text to 79 width with yapf.
                         Default is to wrap.
   -h, --help            Print this help message.
   -v, --version         Print version and exit.
@@ -261,7 +263,7 @@ def remove_html(target_string):
     return re.sub(r'[\'\"][\s\S]*?a>', '', target_string)
 
 
-def get_function_parts(api_call, func_args, is_classy):
+def get_function_parts(api_call, func_args, is_classy, has_add_resp):
     """Get the function description and arguments and return as a tuple."""
     class_indent = bool(not is_classy) * 4  # Classes need indent
     recommended_width = 68 + class_indent
@@ -278,12 +280,12 @@ def get_function_parts(api_call, func_args, is_classy):
                   '`. Please create an issue.'
             API_PRIMITIVES[primitive] = msg
             print(msg)
-        func_desc += '\n\n    args:'
+        func_desc += '\n\n    Args:'
         func_desc += ''.join(['\n        @' + arg + ': ' +
                               API_PRIMITIVES[arg] for arg in func_args])
     params = {}
     if 'params' in api_call and api_call['params']:
-        func_desc += '\n\n    params (dict):'
+        func_desc += '\n\n    Params: (dict)'
         params = api_call['params']
         for param in api_call['params']:
             param['description'] = remove_html(param['description'])
@@ -296,7 +298,17 @@ def get_function_parts(api_call, func_args, is_classy):
                                                   width=recommended_width,
                                                   replace_whitespace=False,
                                                   subsequent_indent=11 * ' ')
-    total_func_desc = func_desc + ''.join(func_param_descs)
+    # ( is first char of (empty)
+    type_dict = {'(': '(None)', '[': '(list)', '{': '(dict)'}
+    sample_resp_first_letter = api_call['sample_resp'][0]
+    func_return_type = type_dict[sample_resp_first_letter]
+    func_return = '\n\n    Returns: ' + func_return_type
+    if has_add_resp:  # Adding the sample response is a configurable option.
+        sample_resp = api_call['sample_resp'].replace('\n', '\n' + 8*' ')
+        func_return += '\n' + 8*' ' + 'Sample Resp:\n' + 8*' ' + sample_resp
+    else:
+        func_return += '\n'
+    total_func_desc = func_desc + ''.join(func_param_descs) + func_return
     return total_func_desc, params
 
 
@@ -319,7 +331,8 @@ def modify_api_calls(args, api_json):
         func_args = get_path_args(api_call['path'], has_params)
         api_calls[index]['gen_func_args'] = ', '.join(func_args)
         func_desc, params =\
-            get_function_parts(api_call, func_args, args['--classy'])
+            get_function_parts(api_call, func_args,
+                               args['--classy'], args['--add-sample-resp'])
         api_calls[index]['gen_func_desc'] = func_desc
 
         if is_http_get_or_delete:
@@ -365,7 +378,7 @@ def main():
             "Only valid languages are bash, ruby, and python.\n" + __doc__)
     preamble = get_preamble(todays_date, len(api_calls), http_stats, language)
     # Reformatting args so that other modules can use options like a dict
-    args['textwrap'] = not args['--nowrap']
+    args['textwrap'] = not args['--no-wrap']
     options = [arg.replace('--', '') for arg in args if args[arg]]
     print('Generating a {' + language + '} script')
     if language == 'python':
