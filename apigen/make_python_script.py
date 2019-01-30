@@ -13,15 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Generate python script."""
+import re
+
 import yapf
+import pylint.lint as pylinter
+import pylint.reporters.text as textreporter
 
 
-def get_python_func(func_name, func_desc, func_args,
-                    req_http_type, req_url_format):
+def make_function(func_name, func_desc, func_args,
+                  req_http_type, req_url_format):
     """Generate a python function given the paramaters."""
     params_should_be_in_url = req_http_type in ['GET', 'DELETE']
-    if 'params' in func_args:
+    if func_args:  # If there is more than the function description, +newline
         func_desc += '\n    '
+    if 'params' in func_args:
         if params_should_be_in_url:
             func_urlencoded_query = """
     # urlencode gives us & when query needs ?
@@ -40,8 +45,8 @@ def get_python_func(func_name, func_desc, func_args,
         req_data = ''
     function_text = """\ndef {0}({1}):
     \"\"\"{2}\"\"\"{3}
-    response = requests.{4}(base_url + {5},{6} headers=headers)
-    return json.loads(response.text)\n\n""".format(
+    response = requests.{4}(BASE_URL + {5},{6} headers=HEADERS)
+    return json.loads(response.text)""".format(
         func_name,
         func_args,
         func_desc,
@@ -53,29 +58,101 @@ def get_python_func(func_name, func_desc, func_args,
     return function_text
 
 
-def make_python_script(api_key, api_calls, preamble):
+def make_classy(api_calls):
+    """Add class headers and indent all functions once.
+
+    Go through API calls and group them by section. Then add the sections
+    together into a string.
+    """
+    api_sections = {}
+    generated_text = ''
+    for api_call in api_calls:
+        section_name = api_call['section'].title().replace(' ', '')
+        if section_name not in api_sections:
+            api_sections[section_name] = []
+        api_sections[section_name].append(api_call)
+
+    for section in api_sections:
+        generated_text += """\
+\n\nclass {0}:
+    \"\"\"Class to access {0} functions.\"\"\"""".format(section)
+        for api_call in api_sections[section]:
+            whitespace_between_methods = '\n'
+            function_text = '\n@staticmethod' + make_function(
+                func_name=api_call['gen_api_name'],
+                func_desc=api_call['gen_func_desc'],
+                func_args=api_call['gen_func_args'],
+                req_http_type=api_call['http_method'],
+                req_url_format=api_call['gen_formatted_url'])
+            function_text += whitespace_between_methods
+            # Class methods are indented one more than functions.
+            indent_regex = r'\n([ ]*?[\S]+?)'  # Only indent text, not \n
+            generated_text += re.sub(indent_regex, r'\n    \1', function_text)
+
+    return generated_text
+
+
+def lint_output(file):
+    """Apply pylint to code text."""
+    class WritableObject:
+        # pylint: disable=too-few-public-methods
+        """Quick class to accept pylint output and write it to string."""
+        def __init__(self):
+            self.text = ''
+
+        def write(self, pylint_line):
+            """Append pylint output to list."""
+            self.text += pylint_line
+
+    pylint_output = WritableObject()
+    # Disable large file (by design), and too few/many public methods
+    # Some classes will have 1 function and SM has 37.
+    # a simple class with a write method
+    pylinter.Run(args=[file, '--disable=C0302,R0903,R0904'],
+                 reporter=textreporter.TextReporter(pylint_output),
+                 do_exit=False)
+    if pylint_output.text and 'rated at 10.00/10' not in pylint_output.text:
+        print(pylint_output.text + 54 * '#')
+        print("## Pylint check is FAILING. Please submit an issue! ##")
+        print("## https://github.com/pocc/meraki-apigen/issues     ##")
+        print(54*"#")
+
+
+def make_python_script(api_key, api_calls, preamble, options):
     """Make python script."""
+    output_file = 'meraki_api.py'
     generated_text = """\
 # -*- coding: utf-8 -*-
 \"\"\"{}\"\"\"
-import json\nimport requests\nimport urllib.parse\n
-base_url = 'https://api.meraki.com/api/v0'
-headers = {{
+import json\nimport urllib.parse\n\nimport requests\n
+BASE_URL = 'https://api.meraki.com/api/v0'
+HEADERS = {{
     'X-Cisco-Meraki-API-Key': '{}',
     'Content-Type': 'application/json'
 }}\n\n""".format(preamble, api_key)
-    for api_call in api_calls:
-        generated_text += get_python_func(
-            func_name=api_call['gen_api_name'],
-            func_desc=api_call['gen_func_desc'],
-            func_args=api_call['gen_args'],
-            req_http_type=api_call['http_method'],
-            req_url_format=api_call['gen_formatted_url'])
-    linted_text = yapf.yapf_api.FormatCode(
-        unformatted_source=generated_text,
-        style_config='pep8',
-        verify=True
-    )[0]
-    with open('meraki_api.py', 'w') as myfile:
-        myfile.write(linted_text)
-    print(linted_text)
+    if 'classy' in options:
+        generated_text += make_classy(api_calls)
+    else:
+        for api_call in api_calls:
+            whitespace_between_functions = '\n\n'
+            generated_text += make_function(
+                func_name=api_call['gen_api_name'],
+                func_desc=api_call['gen_func_desc'],
+                func_args=api_call['gen_func_args'],
+                req_http_type=api_call['http_method'],
+                req_url_format=api_call['gen_formatted_url']) \
+                + whitespace_between_functions
+    with open(output_file, 'w') as myfile:
+        print('\tsaving ' + output_file + '...')
+        myfile.write(generated_text)
+    if 'textwrap' in options:
+        print('\ttext wrapping ' + output_file + '...')
+        yapf.yapf_api.FormatFile(
+            filename=output_file,
+            in_place=True,
+            style_config='pep8',
+            verify=True)
+    if 'lint' in options:
+        print('\tlinting ' + output_file + '...')
+        lint_output(output_file)
+    print("\nPython module generated!")

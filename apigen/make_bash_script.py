@@ -35,7 +35,7 @@ def get_bash_version():
 
 def make_bash_function(func_name, func_params, func_desc, sample_req):
     """Should work for HTTP GET"""
-
+    print(func_params)
     function_text = """
 
 {}

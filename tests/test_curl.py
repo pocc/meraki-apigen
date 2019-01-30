@@ -22,11 +22,11 @@ import time
 import requests
 import json
 
-from apigen.__keys import api_key
+from apigen.__keys import API_KEY
 from apigen.generate_api import get_meraki_apidocs_json
 
 headers = {
-    'X-Cisco-Meraki-API-Key': api_key,
+    'X-Cisco-Meraki-API-Key': API_KEY,
     'Content-Type': 'application/json'
 }
 
@@ -62,7 +62,7 @@ def test_api():
     responses = {}
     for api_call in api_json:
         if api_call['http_method'] == 'GET':
-            curl_sample = api_call['sample_req'].replace('<key>', str(api_key))
+            curl_sample = api_call['sample_req'].replace('<key>', str(API_KEY))
             curl_sample = curl_sample.replace('[organization_id]', str(org_id))
             curl_sample = curl_sample.replace('[organizationId]', str(org_id))
             curl_sample = re.sub(r'organization/\[id\]',

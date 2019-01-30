@@ -13,4 +13,3 @@
 # limitations under the License.
 """Package meraki-api."""
 __version__ = '0.0.0'
-

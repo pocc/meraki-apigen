@@ -33,7 +33,7 @@ class TestMerakiApigen(unittest.TestCase):
 
     def test_integration_python(self):
         """Test python generation."""
-        cmd_list = ['python', self.entry_point, '--key', keys.api_key,
+        cmd_list = ['python', self.entry_point, '--key', keys.API_KEY,
                     '--language', 'python']
         sp_pipe = sp.Popen(cmd_list, stdout=sp.PIPE, stderr=sp.PIPE)
         sp_stdout, sp_stderr = sp_pipe.communicate()
@@ -42,14 +42,14 @@ class TestMerakiApigen(unittest.TestCase):
         generated = importlib.import_module('meraki_api')
         org_data = generated.get_organizations()
         print("Organizations received with generated file:\n", org_data)
-        self.assertEqual(org_data, keys.org_data)
+        self.assertEqual(org_data, keys.ORG_DATA)
         self.assertIn('meraki_api.py', os.listdir(os.getcwd()))
 
     def test_integration_bash(self):
         """Test bash geneartion."""
         if mbs.get_bash_version().startswith('not found'):
             # Generate the file and verify that it exsists.
-            cmd_list = ['python', self.entry_point, '--key', keys.api_key,
+            cmd_list = ['python', self.entry_point, '--key', keys.API_KEY,
                         '--language', 'python']
             sp_pipe = sp.Popen(cmd_list, stdout=sp.PIPE, stderr=sp.PIPE)
             sp_stderr = sp_pipe.communicate()[1].decode('utf-8')
@@ -66,7 +66,7 @@ class TestMerakiApigen(unittest.TestCase):
             cmd_list = ['get_organizations']
             sp_pipe = sp.Popen(cmd_list, stdout=sp.PIPE, stderr=sp.PIPE)
             org_data = sp_pipe.communicate()[0].decode('utf-8')
-            self.assertEqual(org_data, keys.org_data)
+            self.assertEqual(org_data, keys.ORG_DATA)
 
         else:
             print("bash not found. Skipping test_integration_bash.")

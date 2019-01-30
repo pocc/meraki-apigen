@@ -1,0 +1,2 @@
+[MASTER]
+ignore=api_json.py, make_ruby_script.py, meraki_api.py
