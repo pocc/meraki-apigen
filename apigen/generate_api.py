@@ -63,7 +63,7 @@ BASE_URL = 'https://api.meraki.com/api/v0'
 API_PRIMITIVES = {
     'org_id': '(eg 212406)' + '\n' + 12*' ' + '↳ get_orgs()',
     'network_id': '(eg N_24329156)' + '\n' + 12*' ' +
-                  '↳  get_networks_by_org_id(org_id)',
+                  '↳ get_networks_by_org_id(org_id)',
     'admin_id': '(eg 212406)' +
                 '\n' + 12*' ' + '↳  get_admins_by_org_id(org_id)',
     'sr_id': 'Static route ID like d7fa4948-7921-4dfa-af6b-ae8b16c20c39\n' +
@@ -109,13 +109,13 @@ API_PRIMITIVES = {
                           'get_phone_callgroups_by_network_id(network_id)',
     'phone_conference_room_id': 'Room ID (eg 563512903374733359)'
                                 '\n' + 12*' ' + '↳ get_networks_'
-                                'by_organization_id(organization_id)',
+                                'by_org_id(org_id)',
     'contact_id': 'Phone contact ID (eg 823)' + '\n' + 12*' ' +
                   '↳ get_phone_assignments_by_network_id(network_id)',
     'request_id': 'PII request ID (eg 1234)' + '\n' + 12*' ' +
                   '↳ get_pii_requests_by_network_id(network_id)',
     'saml_role_id': 'ID unique to SAML User (eg TEdJIEN1c3RvbWVy)\n' + 12*' ' +
-                    '↳ get_saml_roles_by_organization_id(org_id)',
+                    '↳ get_saml_roles_by_org_id(org_id)',
     'client_id': 'Client ID Hash (eg k74272e)\n' + 12*' ' +
                  '↳ get_clients_by_serial(serial)',
     'profile_id': 'Cisco Clarity Profile ID (eg 12345)' + '\n' + 12*' ' +
@@ -220,7 +220,7 @@ def generate_api_call_name(http_type, api_path):
     api_name_part = ''
     for idx, word in enumerate(path_name_words):
         # For /organizations/[organization_id]/admins/[id]
-        # we get get_admins_by_organizationid_by_id
+        # we get get_admin_id_by_org_id
         if word[0] in ['[', '{'] and idx + 1 < len(path_name_words):
             by_var = word[1:-1]  # strip square brackets
             if word == '[id]':  # Make 'id' more descriptive
@@ -230,11 +230,12 @@ def generate_api_call_name(http_type, api_path):
             api_name_part += '_by_' + by_var
     # Last words of the path are usually the target of the API call
     # so put them first.
-    api_name_part = get_path_last_words(path_name_words) + api_name_part
+    api_call_name = get_path_last_words(path_name_words) + api_name_part
+    api_call_name = api_call_name.replace('organization', 'org')  # Simplify
 
-    if not api_name_part:
-        api_name_part = path_name_words[-1]
-    api_call_name = http_type.lower() + '_' + make_snake_case(api_name_part)
+    if not api_call_name:
+        api_call_name = path_name_words[-1]
+    api_call_name = http_type.lower() + '_' + make_snake_case(api_call_name)
     return api_call_name
 
 
@@ -365,11 +366,11 @@ def main():
     if language == 'python':
         mps.make_python_script(api_key, api_calls, preamble, options)
     elif language == 'ruby':
-        # raise NotImplementedError
         mrs.make_ruby_script(api_key, api_calls, preamble, options)
+        raise NotImplementedError
     elif language == 'bash':
-        # raise NotImplementedError
         mbs.make_bash_script(api_key, api_calls, preamble)
+        raise NotImplementedError
 
 
 if __name__ == '__main__':
