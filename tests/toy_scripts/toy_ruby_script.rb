@@ -3,20 +3,21 @@ require 'net/http'
 require 'uri'
 require 'json'
 
-json_file = File.read('../tests/_vars.json')
+json_file = File.read('../_vars.json')
 json_vars = JSON.parse(json_file)
 $api_key = json_vars["API_KEY"]
 $org_id = json_vars["ORG_ID"]
 $new_admin = json_vars["NEW_ADMIN"]
 
-base_url = 'https://api.meraki.com/api/v0'
+$base_url = 'https://api.meraki.com/api/v0'
 
 
 # From Ruby docs. One redirect is expected: a second is not.
-def fetch(http_method, site, options, limit = 2)
+def api_call(http_method, site, options, limit = 2)
   raise ArgumentError, 'too many HTTP redirects' if limit.zero?
 
   uri = URI.parse(site)
+  puts site
   http = Net::HTTP.new(uri.host, uri.port)
   http.use_ssl = true
 
@@ -43,7 +44,7 @@ def fetch(http_method, site, options, limit = 2)
   when Net::HTTPSuccess then
     return response.body
   when Net::HTTPRedirection then
-    return fetch(http_method, response['location'], options, limit - 1)
+    return api_call(http_method, response['location'], options, limit - 1)
   else
     return response.value
   end
@@ -51,27 +52,27 @@ end
 
 def orgs
   query = '/organizations'
-  fetch('GET', "#{base_url}#{query}", [])
+  fetch('GET', "#{$base_url}#{query}", [])
 end
 
 def admins
   query = "/organizations/#{$org_id}/admins"
-  fetch('GET', "#{base_url}#{query}", [])
+  api_call('GET', "#{$base_url}#{query}", [])
 end
 
 def create_admin
   query = "/organizations/#{$org_id}/admins"
   options = $new_admin
-  fetch('POST', "#{base_url}#{query}", options)
+  api_call('POST', "#{$base_url}#{query}", options)
 end
 
 def update_admin(id)
   query = "/organizations/#{org_id}/admins/#{id}"
   options = { "tags": [{ "tag": 'east', "access": 'read-only' }] }
-  fetch('PUT', "#{base_url}#{query}", options)
+  api_call('PUT', "#{$base_url}#{query}", options)
 end
 
 def delete_admin(id)
   query = "/organizations/#{$org_id}/admins/#{$id}"
-  fetch('DELETE', "#{base_url}#{query}", [])
+  api_call('DELETE', "#{$base_url}#{query}", [])
 end

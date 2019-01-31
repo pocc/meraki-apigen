@@ -33,7 +33,7 @@ def make_function(func_name, func_desc, func_args,
     # urlencode gives us & when query needs ?
     url_query = urllib.parse.urlencode(params)
     url_query = '?' + url_query.replace('&', '?')"""
-            # Add addtional format variable for params arg to be sent in
+            # Add additional format variable for params arg to be sent in
             req_url_format = req_url_format.replace("\'.format", "{}\'.format")
             assert req_url_format.count(')') <= 1  # Should only be format's )
             req_url_format = req_url_format.replace(')', ', url_query)')
@@ -73,12 +73,13 @@ def make_classy(api_calls):
             api_sections[section_name] = []
         api_sections[section_name].append(api_call)
 
+    whitespace_between_methods = '\n'
     for section in api_sections:
         generated_text += """\
 \n\nclass {0}:
     \"\"\"Class to access {0} functions.\"\"\"""".format(section)
+
         for api_call in api_sections[section]:
-            whitespace_between_methods = '\n'
             function_text = '\n@staticmethod' + make_function(
                 func_name=api_call['gen_api_name'],
                 func_desc=api_call['gen_func_desc'],
@@ -163,8 +164,8 @@ def graceful_exit(response):
     if 'classy' in options:
         generated_text += make_classy(api_calls)
     else:
+        whitespace_between_functions = '\n\n'
         for api_call in api_calls:
-            whitespace_between_functions = '\n\n'
             generated_text += make_function(
                 func_name=api_call['gen_api_name'],
                 func_desc=api_call['gen_func_desc'],
@@ -173,16 +174,16 @@ def graceful_exit(response):
                 req_url_format=api_call['gen_formatted_url']) \
                 + whitespace_between_functions
     with open(output_file, 'w') as myfile:
-        print('\tsaving ' + output_file + '...')
+        print('\t- saving ' + output_file + '...')
         myfile.write(generated_text)
     if '--textwrap' in options:
-        print('\ttext wrapping ' + output_file + '...')
+        print('\t- text wrapping ' + output_file + '...')
         yapf.yapf_api.FormatFile(
             filename=output_file,
             in_place=True,
             style_config='pep8',
             verify=True)
     if '--lint' in options:
-        print('\tlinting ' + output_file + '...')
+        print('\t- linting ' + output_file + '...')
         lint_output(output_file)
     print("\nPython module generated!")

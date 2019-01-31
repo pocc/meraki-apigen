@@ -12,4 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Package meraki-api."""
-__version__ = '0.0.0'
+__version__ = '0.2.0'

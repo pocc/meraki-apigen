@@ -20,7 +20,7 @@ import os
 import importlib
 import json
 
-import apigen.make_bash_script as mbs
+import apigen._cli as cli
 with open('_vars.json') as myfile:
     JSON_VARS = json.loads(myfile)
 
@@ -49,7 +49,7 @@ class TestMerakiApigen(unittest.TestCase):
 
     def test_integration_bash(self):
         """Test bash geneartion."""
-        if mbs.get_bash_version().startswith('not found'):
+        if cli.get_bash_version().startswith('not found'):
             # Generate the file and verify that it exsists.
             cmd_list = ['python', self.entry_point, '--key',
                         JSON_VARS['API_KEY'], '--language', 'python']

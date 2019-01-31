@@ -34,7 +34,7 @@ def main():
     preamble = \
         make_method.get_preamble(options, len(api_calls), http_stats, language)
 
-    print('Generating a {' + language + '} script')
+    print('Generating a {' + language + '} script:')
     if language == 'python':
         mps.make_python_script(api_key, api_calls, preamble, options)
     elif language == 'ruby':

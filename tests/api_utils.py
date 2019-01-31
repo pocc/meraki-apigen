@@ -16,16 +16,17 @@
 import subprocess as sp
 import re
 import time
-import requests
 import json
+
+import requests
 
 from apigen._web import fetch_apidocs_json
 
 
 with open('_vars.json') as myfile:
-    json_vars = json.loads(myfile.read())
-API_KEY = json_vars['API_KEY']
-headers = {
+    JSON_VARS = json.loads(myfile.read())
+API_KEY = JSON_VARS['API_KEY']
+HEADERS = {
     'X-Cisco-Meraki-API-Key': API_KEY,
     'Content-Type': 'application/json'
 }
@@ -39,7 +40,7 @@ def get_ids(widget_dict):
 def eg_get_orgs():
     """Example function to verify that it's working."""
     resp = requests.get('https://api.meraki.com/api/v0/organizations',
-                        headers=headers)
+                        headers=HEADERS)
     return json.loads(resp.text)
 
 
@@ -50,7 +51,7 @@ def eg_get_networks(org_id=None):
     resp = requests.get(
         'https://api.meraki.com/api/v0/'
         'organizations/{}/networks'.format(org_id),
-        headers=headers)
+        headers=HEADERS)
     return json.loads(resp.text)
 
 
@@ -101,4 +102,3 @@ def get_cmd_list(cmd_string):
     print(cmd_list)
 
     return cmd_list
-
