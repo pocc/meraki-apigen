@@ -17,20 +17,6 @@ import subprocess as sp
 import re
 
 
-def get_ruby_versions():
-    """Check whether ruby/gem is installed. If so, then rubocop can be used."""
-    try:
-        sp_ruby_ver = sp.Popen(['ruby', '-v'], stdout=sp.PIPE)
-        sp_gem_ver = sp.Popen(['gem', '-v'], stdout=sp.PIPE)
-        ruby_ver = sp_ruby_ver.communicate()[0].decode('utf-8')
-        gem_ver = sp_gem_ver.communicate()[0].decode('utf-8')
-        return re.sub(r'\n|ruby ', '', ruby_ver), re.sub(r'\n', '', gem_ver)
-    # If not installed, catch the error and return not found.
-    except FileNotFoundError:
-        msg = 'not found (required for ruby linting and testing)'
-        return msg, msg
-
-
 def make_ruby_script(api_key, api_calls, preamble, options):
     """Make ruby script."""
     output_file = 'meraki_api.rb'

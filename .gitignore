@@ -1,7 +1,11 @@
 # Keep passwords safe
 *keys.*
 *vars.*
+scratchpad/
+
+# Exclude meraki_api.* unless it is in examples/
 meraki_api.*
+!examples/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

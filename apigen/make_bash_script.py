@@ -13,24 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Generate bash script."""
-import subprocess as sp
 import re
-
-
-def get_bash_version():
-    """Get the bash version if it exists and a message if it does not.
-
-    Should return a string like '3.2.57(1)-release (x86_64-apple-darwin18)'
-    """
-    try:
-        cmd_list = ['bash', '--version']
-        sp_pipe = sp.Popen(cmd_list, stdout=sp.PIPE)
-        sp_stdout = sp_pipe.communicate()[0].decode('utf-8')
-        version_info = sp_stdout.split('version ')[1].split('\n')[0]
-        return version_info
-    except FileNotFoundError:
-        msg = 'not found (required for bash testing)'
-        return msg
 
 
 def make_bash_function(func_name, func_params, func_desc, sample_req):
