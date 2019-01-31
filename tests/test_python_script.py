@@ -18,9 +18,12 @@ Pylint disable (invalid-name) pylint doesn't like the fact that unittest uses
 camel case. As this is an external library, ignore this check.
 """
 import unittest
+import json
 
 import apigen.meraki_api as api
-import tests._vars as tv
+
+with open('_vars.json') as myfile:
+    tv = json.load(myfile)
 
 # pylint: disable=C0103
 
@@ -34,23 +37,23 @@ class TestApigenDashboard(unittest.TestCase):
         """Get the organizations as a list."""
         org_data = api.get_orgs()
         print(org_data)
-        self.assertListEqual(org_data, tv.ORG_DATA)
+        self.assertListEqual(org_data, tv['ORG_DATA'])
 
     def test_get_networks(self):
         """Get networks as a list."""
-        network_data = api.get_networks_by_org_id(tv.ORG_ID)
+        network_data = api.get_networks_by_org_id(tv['ORG_ID'])
         print("Network Data:", network_data)
-        self.assertListEqual(tv.NETWORK_DATA, network_data)
+        self.assertListEqual(tv['NETWORK_DATA'], network_data)
 
     def test_create_delete_networks(self):
         """Create and delete networks, testing expected output along the way"""
-        local_network_data = tv.NEW_NETWORK_DATA
-        local_new_network = api.create_network_by_org_id(tv.ORG_ID,
-                                                         tv.NEW_NETWORK_PARAMS)
+        local_network_data = tv['NEW_NETWORK_DATA']
+        local_new_network = api.create_network_by_org_id(
+            tv['ORG_ID'], tv['NEW_NETWORK_PARAMS'])
         new_network_id = local_new_network['id']
         # Set ID of the last network to the correct one based on new network.
         local_network_data[-1]['id'] = new_network_id
-        remote_all_networks = api.get_networks_by_org_id(tv.ORG_ID)
+        remote_all_networks = api.get_networks_by_org_id(tv['ORG_ID'])
         remote_new_network = remote_all_networks[-1]
         self.assertListEqual(remote_all_networks, local_network_data)
         self.assertDictEqual(remote_new_network, local_new_network)
@@ -60,12 +63,12 @@ class TestApigenDashboard(unittest.TestCase):
 
     def test_update_update_networks(self):
         """Change network and change back and verify changes."""
-        expected_updated_network = tv.UPDATED_NETWORK_JSON
+        expected_updated_network = tv['UPDATED_NETWORK_JSON']
         remote_updated_network = api.update_network_by_network_id(
-            tv.NETWORK_ID, params={"tags": " west "})
+            tv['NETWORK_ID'], params={"tags": " west "})
         self.assertDictEqual(expected_updated_network, remote_updated_network)
         remote_updated_network = api.update_network_by_network_id(
-            tv.NETWORK_ID, params={"tags": ""})
+            tv['NETWORK_ID'], params={"tags": ""})
         expected_updated_network['tags'] = ""
         self.assertDictEqual(expected_updated_network, remote_updated_network)
 
@@ -82,9 +85,9 @@ class TestApigenAdmins(unittest.TestCase):
 
     def test_get_admins(self):
         """Get a list of admins and compare to expected."""
-        actual_admin_data = api.get_admins_by_org_id(tv.ORG_ID)
+        actual_admin_data = api.get_admins_by_org_id(tv['ORG_ID'])
         print("Admin Data:", actual_admin_data)
-        self.assertListEqual(tv.ADMIN_DATA, actual_admin_data)
+        self.assertListEqual(tv['ADMIN_DATA'], actual_admin_data)
 
     def test_add_delete_admin(self):
         """Create a new admin and then delete them.
@@ -92,10 +95,10 @@ class TestApigenAdmins(unittest.TestCase):
         and after each API call.
         """
         # Load dicts from store so we can change them.
-        local_new_admin = tv.NEW_ADMIN
-        local_new_admin_data = tv.NEW_ADMIN_DATA
-        new_admin = api.create_admin_by_org_id(tv.ORG_ID, local_new_admin)
-        current_admin_data = api.get_admins_by_org_id(tv.ORG_ID)
+        local_new_admin = tv['NEW_ADMIN']
+        local_new_admin_data = tv['NEW_ADMIN_DATA']
+        new_admin = api.create_admin_by_org_id(tv['ORG_ID'], local_new_admin)
+        current_admin_data = api.get_admins_by_org_id(tv['ORG_ID'])
         # New administrators get new IDs, so add the new ID to local admin dict
         local_new_admin['id'] = new_admin['id']
         # New admin was last added to admin list.
@@ -103,12 +106,12 @@ class TestApigenAdmins(unittest.TestCase):
         self.assertDictEqual(new_admin, local_new_admin)
         self.assertListEqual(current_admin_data, local_new_admin_data)
 
-        code = api.delete_admin_by_admin_id(tv.ORG_ID, local_new_admin['id'])
+        code = api.delete_admin_by_admin_id(tv['ORG_ID'], local_new_admin['id'])
         self.assertEqual(code, 204)  # 204 is expected DELETE success.
-        current_admin_data = api.get_admins_by_org_id(tv.ORG_ID)
-        self.assertListEqual(current_admin_data, tv.ADMIN_DATA)
+        current_admin_data = api.get_admins_by_org_id(tv['ORG_ID'])
+        self.assertListEqual(current_admin_data, tv['ADMIN_DATA'])
 
     def test_delete_admin(self):
         """For a random admin ID, the return code should be 404."""
-        code = api.delete_admin_by_admin_id(tv.ORG_ID, 0)
-        self.assertEqual(code, 404)
+        code = api.delete_admin_by_admin_id(tv['ORG_ID'], 0)
+        self.assertEqual(404, code)

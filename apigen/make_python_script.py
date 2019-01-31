@@ -127,7 +127,7 @@ def make_python_script(api_key, api_calls, preamble, options):
 import json\nimport urllib.parse\n\nimport requests\n
 BASE_URL = 'https://api.meraki.com/api/v0'
 HEADERS = {{
-    'X-Cisco-Meraki-API-Key': '{}',
+    'X-Cisco-Meraki-API-Key': {},
     'Content-Type': 'application/json'
 }}
 
@@ -141,8 +141,9 @@ def graceful_exit(response):
     
     {{}}:
         204: Successful DELETE
-        404: Bad request. Correct or add to your params.
-        500: Server error.
+        400: Bad request. Correct/check your params
+        404: Resource not found. Correct/check your params
+        500: Server error
     
     Args:
         response (Requests): The requests object from the function call.
@@ -153,7 +154,8 @@ def graceful_exit(response):
         resp_json = json.loads(response.text)
         if 'errors' in resp_json:
             raise ConnectionError(resp_json['errors'])
-        resp_json['status_code'] = response.status_code
+        if type(resp_json) == json:
+            resp_json['status_code'] = response.status_code
         return resp_json
     except ValueError:
         return response.status_code

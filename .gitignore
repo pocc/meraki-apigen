@@ -1,6 +1,6 @@
 # Keep passwords safe
 *keys.*
-_vars.py
+*vars.*
 meraki_api.*
 
 # Byte-compiled / optimized / DLL files

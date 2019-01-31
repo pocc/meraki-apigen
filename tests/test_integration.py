@@ -18,9 +18,11 @@ import subprocess as sp
 import glob
 import os
 import importlib
+import json
 
-import apigen.__keys as keys
 import apigen.make_bash_script as mbs
+with open('_vars.json') as myfile:
+    json_vars = json.loads(myfile)
 
 
 class TestMerakiApigen(unittest.TestCase):
@@ -33,7 +35,7 @@ class TestMerakiApigen(unittest.TestCase):
 
     def test_integration_python(self):
         """Test python generation."""
-        cmd_list = ['python', self.entry_point, '--key', keys.API_KEY,
+        cmd_list = ['python', self.entry_point, '--key', json_vars['API_KEY'],
                     '--language', 'python']
         sp_pipe = sp.Popen(cmd_list, stdout=sp.PIPE, stderr=sp.PIPE)
         sp_stdout, sp_stderr = sp_pipe.communicate()
@@ -42,15 +44,15 @@ class TestMerakiApigen(unittest.TestCase):
         generated = importlib.import_module('meraki_api')
         org_data = generated.get_organizations()
         print("Organizations received with generated file:\n", org_data)
-        self.assertEqual(org_data, keys.ORG_DATA)
+        self.assertEqual(org_data, json_vars['ORG_DATA'])
         self.assertIn('meraki_api.py', os.listdir(os.getcwd()))
 
     def test_integration_bash(self):
         """Test bash geneartion."""
         if mbs.get_bash_version().startswith('not found'):
             # Generate the file and verify that it exsists.
-            cmd_list = ['python', self.entry_point, '--key', keys.API_KEY,
-                        '--language', 'python']
+            cmd_list = ['python', self.entry_point, '--key',
+                        json_vars['API_KEY'], '--language', 'python']
             sp_pipe = sp.Popen(cmd_list, stdout=sp.PIPE, stderr=sp.PIPE)
             sp_stderr = sp_pipe.communicate()[1].decode('utf-8')
             self.assertIsNone(sp_stderr)
@@ -66,7 +68,7 @@ class TestMerakiApigen(unittest.TestCase):
             cmd_list = ['get_organizations']
             sp_pipe = sp.Popen(cmd_list, stdout=sp.PIPE, stderr=sp.PIPE)
             org_data = sp_pipe.communicate()[0].decode('utf-8')
-            self.assertEqual(org_data, keys.ORG_DATA)
+            self.assertEqual(org_data, json_vars['ORG_DATA'])
 
         else:
             print("bash not found. Skipping test_integration_bash.")

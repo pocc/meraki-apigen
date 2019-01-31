@@ -385,10 +385,8 @@ def main():
         mps.make_python_script(api_key, api_calls, preamble, options)
     elif language == 'ruby':
         mrs.make_ruby_script(api_key, api_calls, preamble, options)
-        raise NotImplementedError
     elif language == 'bash':
         mbs.make_bash_script(api_key, api_calls, preamble)
-        raise NotImplementedError
 
 
 if __name__ == '__main__':
