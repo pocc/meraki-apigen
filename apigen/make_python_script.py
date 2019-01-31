@@ -175,14 +175,14 @@ def graceful_exit(response):
     with open(output_file, 'w') as myfile:
         print('\tsaving ' + output_file + '...')
         myfile.write(generated_text)
-    if 'textwrap' in options:
+    if '--textwrap' in options:
         print('\ttext wrapping ' + output_file + '...')
         yapf.yapf_api.FormatFile(
             filename=output_file,
             in_place=True,
             style_config='pep8',
             verify=True)
-    if 'lint' in options:
+    if '--lint' in options:
         print('\tlinting ' + output_file + '...')
         lint_output(output_file)
     print("\nPython module generated!")

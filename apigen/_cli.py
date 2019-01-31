@@ -17,7 +17,7 @@
 
 USAGE:
     meraki-apigen (--key <apikey>) [--language <name>]
-                  [--classy] [--lint] [--no-wrap] [--add-sample-resp]
+                  [--classy] [--lint] [--textwrap] [--sample-resp]
                   [-h | --help] [-v | --version]
 
 DESCRIPTION:
@@ -32,9 +32,8 @@ OPTIONS:
                         For ruby linting, ruby/gem will need to be installed.
   -c, --classy          Use classes instead of a function list.
   -l, --lint            Call Pylint. If not 10.00/10, print error text.
-  -r, --add-sample-resp
-                        Add the sample response to function documentation.
-  -n, --no-wrap         Do not wrap text to 79 width with yapf.
+  -r, --sample-resp     Add the sample response to function documentation.
+  -t, --textwrap        Wrap text according to language. Python(79), Ruby(120)
                         Default is to wrap.
   -h, --help            Print this help message.
   -v, --version         Print version and exit.
@@ -103,8 +102,7 @@ def show_cli():
         raise ValueError(
             "Only valid languages are python and ruby.\n" + __doc__)
 
-    # Reformatting args so that other modules can use options like a dict
-    args['textwrap'] = not args['--no-wrap']
     # These are all of the user-selected options.
-    options = [arg.replace('--', '') for arg in args if args[arg]]
+    required_args = ['--key', '--language']
+    options = [arg for arg in args if args[arg] and arg not in required_args]
     return args['--key'], args['--language'], options

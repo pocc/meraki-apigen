@@ -31,7 +31,8 @@ def main():
 
     api_calls = make_method.modify_api_calls(api_json, options)
     http_stats = make_method.get_http_stats(api_calls)
-    preamble = make_method.get_preamble(len(api_calls), http_stats, language)
+    preamble = \
+        make_method.get_preamble(options, len(api_calls), http_stats, language)
 
     print('Generating a {' + language + '} script')
     if language == 'python':

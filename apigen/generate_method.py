@@ -106,11 +106,13 @@ def get_http_stats(api_calls):
     return re.sub(r'[\']', '', str(http_types_counts))
 
 
-def get_preamble(num_api_calls, http_stats, lang):
+def get_preamble(cli_options, num_api_calls, http_stats, lang):
     """Generate the docstring header at the top of the file."""
-    todays_date = datetime.datetime.now().isoformat()
+    date = datetime.datetime.now().isoformat()
+    options_str = ' '.join(cli_options)
     header = """Generated and linted at {}
-Pulled via the Meraki API v0 (https://dashboard.meraki.com/api_docs/)
+Using:  meraki-apigen --key <key> {}
+Pulled data from Meraki API v0 (https://dashboard.meraki.com/api_docs/)
 API calls: {} {}
 
 Meraki API Generator v{}
@@ -121,14 +123,8 @@ More Info
     Author: Ross Jacobs (rosjacob [AT] cisco.com)
     Github: https://github.com/pocc/meraki-apigen
     Issues: https://github.com/pocc/meraki-apigen/issues
-""".format(todays_date, num_api_calls, http_stats, apigen_version, lang)
+""".format(date, options_str, num_api_calls, http_stats, apigen_version, lang)
     return header
-
-
-def make_snake_case(input_string):
-    """Make a CamelCase string snake_case."""
-    temp_string = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', input_string)
-    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', temp_string).lower()
 
 
 def get_path_args(api_path, has_params):
@@ -150,7 +146,7 @@ def get_path_args(api_path, has_params):
             arg += '_number'
         if 's_' in arg:  # Remove needless plurals
             arg = arg.replace('s_', '_')
-        args[index] = make_snake_case(arg)
+        args[index] = inf.underscore(arg)
 
     if has_params:
         args += ['params']
@@ -165,7 +161,7 @@ def get_formatted_url(api_call_path, has_params):
     request by adding them with string.format() in the end function."""
     # The variables that will end up being in the function
     func_vars = ', '.join(get_path_args(api_call_path, has_params))
-    func_vars = make_snake_case(func_vars)
+    func_vars = inf.underscore(func_vars)
     temp_path = re.sub(r'[\[{][A-Za-z_-]*[\]}]', '{}', api_call_path)
 
     formatted_path = "'{}'.format({})".format(temp_path, func_vars)
@@ -240,7 +236,7 @@ def get_function_parts(api_call, func_args, options):
                                                   replace_whitespace=False,
                                                   subsequent_indent=11 * ' ')
     func_return = get_func_returns(
-        api_call['sample_resp'], 'add-sample-resp' in options)
+        api_call['sample_resp'], '--sample-resp' in options)
     return func_desc + ''.join(func_param_descs) + func_return
 
 
@@ -274,7 +270,7 @@ def get_func_returns(sample_resp, has_add_resp):
     func_return_type = type_dict[sample_resp_first_letter]
     func_return = '\n\n    Returns: ' + func_return_type
     if has_add_resp:  # Adding the sample response is a configurable option.
-        sample_resp = sample_resp['sample_resp'].replace('\n', '\n' + 8*' ')
+        sample_resp = sample_resp.replace('\n', '\n' + 8*' ')
         func_return += '\n' + 8*' ' + 'Sample Resp:\n' + 8*' ' + sample_resp
     else:
         func_return += '\n'

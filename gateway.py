@@ -15,6 +15,6 @@
 """A journey of a thousand miles begins with a hop through your gateway.
 Provides an entry point for Meraki-Apigen.
 """
-from apigen.generate_api import main
+from apigen.meraki_apigen import main
 
 main()
