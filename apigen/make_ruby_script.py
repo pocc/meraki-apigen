@@ -12,10 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Generate ruby script.
-
-Does not work.
-"""
+"""Generate ruby script."""
 import subprocess as sp
 import re
 
@@ -34,8 +31,9 @@ def get_ruby_versions():
         return msg, msg
 
 
-def make_ruby_script(api_key, todays_date, num_api_calls, http_stats):
+def make_ruby_script(api_key, api_calls, preamble, options):
     """Make ruby script."""
+    output_file = 'meraki_api.rb'
     generated_text = """\
 <<-HEREDOC
 
@@ -43,11 +41,58 @@ HEREDOC
 
 require 'net/http'
 require 'uri'
+require 'json'
 
-api_key = {}
-"""
-    ruby_ver, gem_ver = get_ruby_versions()
-    return generated_text
+json_file = File.read('_vars.json')
+json_vars = JSON.parse(json_file)
+$api_key = json_vars["API_KEY"]
+$org_id = json_vars["ORG_ID"]
+$new_admin = json_vars["NEW_ADMIN"]
+
+base_url = 'https://api.meraki.com/api/v0'
+
+
+# From Ruby docs. One redirect is expected: a second is not.
+def fetch(http_method, site, options, limit = 2)
+  raise ArgumentError, 'too many HTTP redirects' if limit.zero?
+
+  uri = URI.parse(site)
+  http = Net::HTTP.new(uri.host, uri.port)
+  http.use_ssl = true
+
+  case http_method
+  when 'GET' then
+    request = Net::HTTP::Get.new(uri.request_uri)
+  when 'POST' then
+    request = Net::HTTP::Post.new(uri.request_uri)
+    request.body = options.to_json
+  when 'PUT' then
+    request = Net::HTTP::Put.new(uri.request_uri)
+    request.body = options.to_json
+  when 'DELETE' then
+    request = Net::HTTP::Delete.new(uri.request_uri)
+  else
+    raise ArgumentError, 'Invalid HTTP method'
+  end
+  request['Content-Type'] = 'application/json'
+  request['X-Cisco-Meraki-Api-Key'] = $api_key
+  request['User-Agent'] = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36  (KHTML, like Gecko) Chrome/59.0.3071.86 Safari/537.36'
+  response = http.request(request)
+
+  case response
+  when Net::HTTPSuccess then
+    response.body
+  when Net::HTTPRedirection then
+    fetch(http_method, response['location'], options, limit - 1)
+  else
+    response.value
+  end
+end
+""".format(api_key)
+
+    with open(output_file, 'w') as myfile:
+        print('\tsaving ' + output_file + '...')
+        myfile.write(generated_text)
 
 
 def make_ruby_function(func_name, func_desc, func_params,

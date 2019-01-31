@@ -12,21 +12,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Test whether the API endpoints work per the sample requests provided.
-
-Currently works for only some calls.
-"""
+"""Toy python script to test various API functions."""
 import subprocess as sp
 import re
 import time
 import requests
 import json
 
-from apigen.__keys import API_KEY
 from apigen.generate_api import get_meraki_apidocs_json
 
+with open('../tests/_vars.json') as myfile:
+    json_vars = json.loads(myfile)
 headers = {
-    'X-Cisco-Meraki-API-Key': API_KEY,
+    'X-Cisco-Meraki-API-Key': json_vars['API_KEY'],
     'Content-Type': 'application/json'
 }
 
