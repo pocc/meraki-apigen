@@ -18,9 +18,10 @@ import apigen._cli as cli
 import apigen._web as web
 import apigen.generate_method as make_method
 
-import apigen.make_bash_script as mbs
 import apigen.make_python_script as mps
 import apigen.make_ruby_script as mrs
+import apigen.make_bash_script as mbs
+import apigen.make_powershell_script as mpss
 
 
 def main():
@@ -41,6 +42,8 @@ def main():
         mrs.make_ruby_script(api_key, api_calls, preamble, options)
     elif language == 'bash':
         mbs.make_bash_script(api_key, api_calls, preamble)
+    elif language == 'powershell':
+        mpss.make_powershell_script(api_key, api_calls, preamble, options)
 
 
 if __name__ == '__main__':

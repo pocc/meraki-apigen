@@ -53,7 +53,10 @@ Add the sample response to the function docstring.
 **Planned**
 * go
 * node
-* bash
+
+## Usage
+### Powershell
+import-module merakygen
 
 ## Similar Projects
 Check out https://github.com/CiscoDevNet/awesome-merakiapis.

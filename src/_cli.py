@@ -28,7 +28,8 @@ DESCRIPTION:
 OPTIONS:
   --key <apikey>        Your API key. You can find it by going to your profile.
   --language <name>     Create a script in language. Valid options are
-                        python, ruby, and bash. Python is the default.
+                        python, ruby, bash, and powershell. If no language is
+                        specified, python will be used.
                         For ruby linting, ruby/gem will need to be installed.
   -c, --classy          Use classes instead of a function list.
   -l, --lint            Call Pylint. If not 10.00/10, print error text.
@@ -98,9 +99,9 @@ def show_cli():
     # Python is default
     if not args['--language']:
         args['--language'] = 'python'
-    if args['--language'] not in ['bash', 'python', 'ruby']:
-        raise ValueError(
-            "Only valid languages are python and ruby.\n" + __doc__)
+    if args['--language'] not in ['bash', 'python', 'ruby', 'powershell']:
+        raise ValueError("Only valid languages are python, ruby, "
+                         "bash, and powershell.\n" + __doc__)
 
     # These are all of the user-selected options.
     required_args = ['--key', '--language']
