@@ -22,9 +22,11 @@ import json
 
 import examples.meraki_api as api
 
-with open('_vars.json') as myfile:
+with open('../_apikey') as myfile:
+    APIKEY = myfile.read()
+with open('../_vars.json') as myfile:
     VARS = json.load(myfile)
-
+api.HEADERS['X-Cisco-Meraki-API-Key'] = APIKEY
 # pylint: disable=C0103
 
 
@@ -72,10 +74,19 @@ class TestApigenDashboard(unittest.TestCase):
         expected_updated_network['tags'] = ""
         self.assertDictEqual(expected_updated_network, remote_updated_network)
 
-    def util_delete_networks(self):
-        """Delete a network manually given a network ID if a test failed."""
-        code = api.delete_network_by_network_id(network_id='')
-        self.assertEqual(code, 204)
+    def test_delete_networks(self):
+        """Test deletion of networks (doubles as a network deletion utility)
+
+        network_id='' should return 404.
+        An actual network_id should return 204
+        """
+        network_id = 'N_'
+        code = api.delete_network_by_network_id(network_id)
+        self.assertEqual(204, code)
+        if network_id == 'N_':
+            self.assertEqual(404, code)
+        else:
+            self.assertEqual(204, code)
 
 
 class TestApigenAdmins(unittest.TestCase):
@@ -86,32 +97,70 @@ class TestApigenAdmins(unittest.TestCase):
     def test_get_admins(self):
         """Get a list of admins and compare to expected."""
         actual_admin_data = api.get_admins_by_org_id(VARS['ORG_ID'])
+        # lastActive changes all the time. Delete it from the fetched data.
+        for index, _ in enumerate(actual_admin_data):
+            actual_admin_data[index]['lastActive'] = ""
+        print("Expected Data:", VARS['ADMIN_DATA'])
         print("Admin Data:", actual_admin_data)
         self.assertListEqual(VARS['ADMIN_DATA'], actual_admin_data)
 
-    def test_add_delete_admin(self):
+    def test_create_delete_admin(self):
         """Create a new admin and then delete them.
         Note this new admin is not a verified admin. Verify admin data before
         and after each API call.
         """
         # Load dicts from store so we can change them.
-        local_new_admin = VARS['NEW_ADMIN']
-        local_new_admin_data = VARS['NEW_ADMIN_DATA']
-        new_admin = api.create_admin_by_org_id(VARS['ORG_ID'], local_new_admin)
-        current_admin_data = api.get_admins_by_org_id(VARS['ORG_ID'])
+        expected_new_admin = VARS['NEW_ADMIN']
+        expected_new_admin_data = VARS['NEW_ADMIN_DATA']
+        new_admin = api.create_admin_by_org_id(VARS['ORG_ID'],
+                                               expected_new_admin)
+        new_admin_data = api.get_admins_by_org_id(VARS['ORG_ID'])
         # New administrators get new IDs, so add the new ID to local admin dict
-        local_new_admin['id'] = new_admin['id']
+        expected_new_admin['id'] = new_admin['id']
+        # lastActive changes all the time. Delete it from the fetched data.
+        for index, _ in enumerate(new_admin_data):
+            new_admin_data[index]['lastActive'] = ""
         # New admin was last added to admin list.
-        local_new_admin_data[-1] = local_new_admin
-        self.assertDictEqual(new_admin, local_new_admin)
-        self.assertListEqual(current_admin_data, local_new_admin_data)
+        expected_new_admin_data[-1] = expected_new_admin
+        self.assertDictEqual(expected_new_admin, new_admin)
+        self.assertListEqual(expected_new_admin_data, new_admin_data)
 
-        code = api.delete_admin_by_admin_id(VARS['ORG_ID'], local_new_admin['id'])
+        code = api.delete_admin_by_admin_id(VARS['ORG_ID'],
+                                            expected_new_admin['id'])
         self.assertEqual(code, 204)  # 204 is expected DELETE success.
-        current_admin_data = api.get_admins_by_org_id(VARS['ORG_ID'])
-        self.assertListEqual(current_admin_data, VARS['ADMIN_DATA'])
+        new_admin_data = api.get_admins_by_org_id(VARS['ORG_ID'])
+        # lastActive changes all the time. Delete it from the fetched data.
+        for index, _ in enumerate(new_admin_data):
+            new_admin_data[index]['lastActive'] = ""
+        self.assertListEqual(new_admin_data, VARS['ADMIN_DATA'])
 
     def test_delete_admin(self):
-        """For a random admin ID, the return code should be 404."""
-        code = api.delete_admin_by_admin_id(VARS['ORG_ID'], 0)
-        self.assertEqual(404, code)
+        """Test deletion of networks (doubles as a network deletion utility)
+
+        admin_id=0 should return 404. Real admin_id should return 204"""
+        admin_id = 0
+        code = api.delete_admin_by_admin_id(VARS['ORG_ID'], admin_id)
+        if admin_id == 0:
+            self.assertEqual(404, code)
+        else:
+            self.assertEqual(204, code)
+
+    def test_delete_extra_admin(self):
+        """If there's one more admin than expected, delete them."""
+        actual_admin_data = api.get_admins_by_org_id(VARS['ORG_ID'])
+        # lastActive changes all the time. Delete it from the fetched data.
+        for index, _ in enumerate(actual_admin_data):
+            actual_admin_data[index]['lastActive'] = ""
+        actual_ids = [admin['id'] for admin in actual_admin_data]
+        expected_ids = [admin['id'] for admin in VARS['ADMIN_DATA']]
+        if actual_ids != expected_ids:
+            diff_admin_id = list(set(actual_ids).difference(
+                set(expected_ids)))[0]
+            diff_admin_email = [admin['email'] for admin in actual_admin_data
+                                if admin['id'] == diff_admin_id][0]
+            print("Deleting admin...\nemail:", diff_admin_email,
+                  "\nID:", diff_admin_id)
+            code = api.delete_admin_by_admin_id(VARS['ORG_ID'], diff_admin_id)
+            print("Return code is ", code)
+        else:
+            print("No excess admins detected!")

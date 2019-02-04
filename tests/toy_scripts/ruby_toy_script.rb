@@ -76,3 +76,6 @@ def delete_admin(id)
   query = "/organizations/#{$org_id}/admins/#{$id}"
   api_call('DELETE', "#{$base_url}#{query}", [])
 end
+
+
+orgs
