@@ -21,7 +21,7 @@ import merakygen.generate_method as make_method
 import merakygen.make_python_script as mps
 import merakygen.make_ruby_script as mrs
 import merakygen.make_bash_script as mbs
-import merakygen.make_powershell_script as mpss
+import merakygen.make_powershell_module as mpss
 
 
 def main():
@@ -30,7 +30,7 @@ def main():
     api_key, language, options = cli.show_cli()
     api_json = web.fetch_apidocs_json()
 
-    api_calls = make_method.modify_api_calls(api_json, options)
+    api_calls = make_method.modify_api_calls(api_json, options, language)
     http_stats = make_method.get_http_stats(api_calls)
     preamble = \
         make_method.get_preamble(options, len(api_calls), http_stats, language)

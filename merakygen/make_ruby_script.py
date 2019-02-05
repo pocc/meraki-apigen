@@ -117,7 +117,7 @@ end
     whitespace_between_functions = '\n\n'
     for api_call in api_calls:
         generated_text += make_ruby_function(
-            func_name=api_call['gen_api_name'],
+            func_name=api_call['gen_name'],
             func_desc=api_call['gen_func_desc'],
             func_args=api_call['gen_func_args'],
             req_http_type=api_call['http_method'],

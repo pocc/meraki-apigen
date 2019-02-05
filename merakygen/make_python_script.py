@@ -81,7 +81,7 @@ def make_classy(api_calls):
 
         for api_call in api_sections[section]:
             function_text = '\n@staticmethod' + make_function(
-                func_name=api_call['gen_api_name'],
+                func_name=api_call['gen_name'],
                 func_desc=api_call['gen_func_desc'],
                 func_args=api_call['gen_func_args'],
                 req_http_type=api_call['http_method'],
@@ -128,7 +128,7 @@ def make_python_script(api_key, api_calls, preamble, options):
 import json\nimport urllib.parse\n\nimport requests\n
 BASE_URL = 'https://api.meraki.com/api/v0'
 HEADERS = {{
-    'X-Cisco-Meraki-API-Key': {},
+    'X-Cisco-Meraki-API-Key': '{}',
     'Content-Type': 'application/json'
 }}
 
@@ -160,6 +160,7 @@ def graceful_exit(response):
         return resp_json
     except ValueError:
         return response.status_code
+
 """.format(preamble, api_key)
     if 'classy' in options:
         generated_text += make_classy(api_calls)
@@ -167,7 +168,7 @@ def graceful_exit(response):
         whitespace_between_functions = '\n\n'
         for api_call in api_calls:
             generated_text += make_function(
-                func_name=api_call['gen_api_name'],
+                func_name=api_call['gen_name'],
                 func_desc=api_call['gen_func_desc'],
                 func_args=api_call['gen_func_args'],
                 req_http_type=api_call['http_method'],

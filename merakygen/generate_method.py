@@ -168,7 +168,7 @@ def get_formatted_url(api_call_path, has_params):
     return formatted_path
 
 
-def generate_api_call_name(http_type, api_path):
+def generate_api_call_words(http_type, api_path):
     """Generate the API call name as a unique one is not provided."""
     # Use 'create' and 'update' instead of 'post' and 'put' for readability.
     http_type = http_type.replace('POST', 'create').replace('PUT', 'update')
@@ -193,19 +193,20 @@ def generate_api_call_name(http_type, api_path):
             word_before = inf.singularize(inf.underscore(word_before))
             # Combines /networks/[networkId] => networkId
             if word_before not in word:
-                word = word_before + '_' + word
+                words = [word_before, word]
+            else:
+                words = [word]
             if i == 0:
                 if is_get:
                     word_before = inf.pluralize(word_before)
-                return http_type + '_' + word_before + '_by_' + word
+                return [http_type] + [word_before] + ['by'] + words
             if i > 0:
                 if not is_get and 'settings' not in word_list[-1]:
                     word_list[-1] = inf.singularize(word_list[-1])
-                word_list.insert(0, http_type)
-                return '_'.join(word_list) + '_by_' + word
+                return [http_type] + word_list + ['by'] + words
         word_list.insert(0, word)
 
-    return http_type + '_' + '_'.join(word_list)
+    return [http_type] + word_list  # For GET /organizations, which has no [args]
 
 
 def remove_html(target_string):
@@ -278,7 +279,29 @@ def get_func_returns(sample_resp, has_add_resp):
     return func_return
 
 
-def modify_api_calls(api_json, options):
+def generate_func_name(api_call, language):
+    """Convert the api call words to a function name, per language."""
+    api_call_words = generate_api_call_words(
+        api_call['http_method'], api_call['path'])
+    # default is snake_case for ruby and python
+    if language in ['python', 'ruby']:
+        api_call_name = '_'.join(api_call_words)
+    elif language in ['go', 'javascript']:  # CamelCase
+        title_words = ''.join([word.title() for word in api_call_words])
+        api_call_name = title_words.title().replace('_', '')
+    else:  # powershell with Semi-CamelCase (Verb-NounNoun...)
+        # https://docs.microsoft.com/en-us/powershell/developer/cmdlet/approved-verbs-for-windows-powershell-commands
+        convert_to_approved_verb = {
+            'GET': 'Get', 'POST': 'Add', 'PUT': 'Set', 'DELETE': 'Remove'}
+        approved_verb = convert_to_approved_verb[api_call['http_method']]
+        nouns = ''.join([word.title() for word in api_call_words[1:]])
+        no_underscore_nouns = nouns.replace('_', '')
+        api_call_name = approved_verb + '-' + no_underscore_nouns
+
+    return api_call_name
+
+
+def modify_api_calls(api_json, options, language):
     """Modify API calls in meaningful ways."""
     api_calls = []
 
@@ -289,8 +312,7 @@ def modify_api_calls(api_json, options):
             api_calls += [api_call]
 
     for index, api_call in enumerate(api_calls):
-        api_calls[index]['gen_api_name'] = generate_api_call_name(
-            api_call['http_method'], api_call['path'])
+        api_calls[index]['gen_name'] = generate_func_name(api_call, language)
         is_http_get_or_delete = api_call['http_method'] in ['GET', 'DELETE']
 
         has_params = 'params' in api_call and api_call['params']

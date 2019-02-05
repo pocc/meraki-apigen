@@ -47,10 +47,11 @@ def make_function(func_name, func_desc, func_args,
     else:
         func_urlencoded_query = ''
         req_data = ''
-    function_text = """\nfunction {0}({1}):
+    function_text = """function {0}({1}) {{
     <#{2}#>{3}
     response = requests.{4}(BASE_URL + {5},{6} headers=HEADERS)
-    return graceful_exit(response)""".format(
+    return graceful_exit(response)
+}}""".format(
         func_name,
         func_args,
         func_desc,
@@ -84,7 +85,7 @@ def make_classes(api_calls):
 
         for api_call in api_sections[section]:
             function_text = '\n@staticmethod' + make_function(
-                func_name=api_call['gen_api_name'],
+                func_name=api_call['gen_name'],
                 func_desc=api_call['gen_func_desc'],
                 func_args=api_call['gen_func_args'],
                 req_http_type=api_call['http_method'],
@@ -110,14 +111,15 @@ class MakePSModule:
 
     def make_folders(self):
         """Make folders for Powershell module structure.
-
         /MerakiAPI
-            /Classes
+            /Classes :  Classes that contain schemas for objects
+                        like org, network, admin
             /Functions
-                /Private
-                /Public
-            MerakiAPI.psd1
-            MerakiAPI.psm1
+                /Private : Where functions that are required by
+                           generated functions go.
+                /Public : Where generated functions go
+            MerakiAPI.psd1 : Required module metadata file
+            MerakiAPI.psm1 : Required module entry point
         """
         folders = [
             self.module + '/Classes',
@@ -189,96 +191,21 @@ def ps_sanitize(text):
 
 def make_powershell_script(api_key, api_calls, preamble, options):
     """Make powershell script."""
-    output_file = 'meraki_api.ps1'
-    generated_text = """\
-# -*- coding: utf-8 -*-
-<#{}#>
-class ApiCall
-{{
-    [string] $apiKey = "{}"
-    [hashtable] $headers = @{{ 'X-Cisco-Meraki-API-Key' = $this.apiKey }}
+    module_name = 'MerakiAPI'
+    MakePSModule(module=module_name)
 
-    # Optional method params don't exist so overload functions instead.
-    [string] SendRequest([string]$httpMethod, [string]$endpointUrl) {{
-        $emptyParams = ''
-        return $this.SendRequest($httpMethod, $endpointUrl, $emptyParams)}}
-    [string] SendRequest([string]$httpMethod, [string]$endpointUrl, [string]$params) {{
-        # Gather/Format API call inputs for Send Request and then call
-        # Using Invoke-WebRequest over Invoke-RestMethod because the former has more
-        # metadata like StatusCodes.
-        $this.utils.print("`nCalling $($httpMethod) on $($endpointUrl) with [$($params)] params.")
-        $url = "https://api.meraki.com/api/v0$($endpointUrl)"
-        $RespErr = ''
-
-        try {{
-            if ($params) {{
-                $result = Invoke-WebRequest -Uri $url -Headers $this.headers -Body $params `
-                                -method $httpMethod -ContentType 'Application/Json' -ErrorVariable RespErr
-            }}
-            else
-            {{
-                $result = Invoke-WebRequest -Uri $url -Headers $this.headers `
-                                -method $httpMethod -ContentType 'Application/Json' -ErrorVariable RespErr
-            }}
-            # Keeping for troubleshooting purposes
-            $statusCode = $result.StatusCode
-
-            # Get data and remove trailing whitespace
-            $data = $result.Content -replace "[\s]*$",""
-            return $data
-        }}
-        catch {{
-            $data = $RespErr
-            $statusCode = $_.Exception.Response.StatusCode.Value__
-            $this.utils.print("Status code: $($statusCode); Data: $($data)")
-            return $data
-        }}
-    }}
-}}
-
-
-def graceful_exit(response):
-    <#Gracefully exit from the function.
-    
-    JSON:
-        200: Successful GET, UPDATE
-        201: Successful POST
-    
-    {{}}:
-        204: Successful DELETE
-        400: Bad request. Correct/check your params
-        404: Resource not found. Correct/check your params
-        500: Server error
-    
-    Args:
-        response (Requests): The requests object from the function call.
-    Returns:
-        JSON if one is available. Return status code (int) if not.
-    #>
-    try:
-        resp_json = json.loads(response.text)
-        if 'errors' in resp_json:
-            raise ConnectionError(resp_json['errors'])
-        if type(resp_json) == json:
-            resp_json['status_code'] = response.status_code
-        return resp_json
-    except ValueError:
-        return response.status_code
-""".format(preamble, api_key)
-    # Always use classes in powershell
-    # Todo Add classes for object types, but accessors as functions
-    # generated_text += make_classes(api_calls)
-    whitespace_between_functions = '\n\n'
+    public_func_dir = os.getcwd() + '/' + module_name + '/Functions/Public'
     for api_call in api_calls:
-        generated_text += make_function(
-            func_name=api_call['gen_api_name'],
+        generated_text = make_function(
+            func_name=api_call['gen_name'],
             func_desc=api_call['gen_func_desc'],
             func_args=api_call['gen_func_args'],
             req_http_type=api_call['http_method'],
             req_url_format=api_call['gen_formatted_url']) \
-            + whitespace_between_functions
-    with open(output_file, 'w') as myfile:
-        print('\t- saving ' + output_file + '...')
-        myfile.write(generated_text)
+            + '\n'
+        func_file_path = public_func_dir + '/' + api_call['gen_name'] + '.ps1'
+        with open(func_file_path, 'w') as myfile:
+            print('\t- saving ' + api_call['gen_name'] + '.ps1' + ' ...')
+            myfile.write(generated_text)
+
     print("\npowershell module generated!")
-    MakePSModule(module='MerakiAPI')

@@ -6,7 +6,7 @@ scratchpad/
 
 # Exclude meraki_api.* unless it is in examples/
 meraki_api.*
-!examples/*
+!generated/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

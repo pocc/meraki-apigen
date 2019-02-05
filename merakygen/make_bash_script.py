@@ -55,7 +55,7 @@ def make_bash_script(api_key, api_calls, preamble):
         sample_req = re.sub(r'\'https.*?\'', api_path, sample_req)
         func_desc = '# ' + api_call['gen_func_desc'].replace('\n    ', '\n# ')
         generated_text += make_bash_function(
-            api_call['gen_api_name'],
+            api_call['gen_name'],
             api_call['gen_params'],
             func_desc,
             sample_req,
