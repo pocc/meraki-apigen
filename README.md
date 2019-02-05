@@ -16,17 +16,17 @@ This is still under active development.
 
 ## Features
 ### CLI options
-####--classy (python only)
+#### --classy (python only)
 Aggregate functions into classes based on their API section. 
 
-####--lint (python only)
+#### --lint (python only)
 Use the linting utility for $language to verify code quality for 
 generated code.
 
 * Python: pylint
 * Ruby: rubocop
 
-####--textwrap
+#### --textwrap
 Wrap text according to the style guide for $language.
 
 **Max Line Length**
@@ -39,7 +39,7 @@ Wrap text according to the style guide for $language.
 * Ruby: 2 spaces
 * Powershell: 4 spaces
 
-####--sample-resp
+#### --sample-resp
 Add the sample response to the function docstring.
 
 ### Languages

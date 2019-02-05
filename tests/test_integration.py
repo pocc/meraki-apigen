@@ -20,7 +20,7 @@ import os
 import importlib
 import json
 
-import apigen._cli as cli
+import src._cli as cli
 with open('_vars.json') as myfile:
     JSON_VARS = json.loads(myfile)
 
@@ -59,7 +59,7 @@ class TestMerakiApigen(unittest.TestCase):
             self.assertIn('meraki_api.sh', os.listdir(os.getcwd()))
 
             # Load the functions in the shell script into the shell.
-            cmd_list = ['source', 'apigen/meraki_api.sh']
+            cmd_list = ['source', 'src/meraki_api.sh']
             sp_pipe = sp.Popen(cmd_list, stdout=sp.PIPE, stderr=sp.PIPE)
             sp_stderr = sp_pipe.communicate()[1].decode('utf-8')
             self.assertIsNone(sp_stderr)

@@ -15,7 +15,7 @@
 # limitations under the License.
 """Setup file."""
 from setuptools import setup
-from src import __version__
+from src import __version__, __description__, __project_url__
 from codecs import open
 
 with open('README.md', encoding='utf-8') as file:
@@ -29,12 +29,12 @@ setup(
     long_description_content_type='text/markdown',
     author='Ross Jacobs',
     author_email='rossbjacobs@gmail.com',
-    url='https://www.github.com/pocc/merakygen/',
-    download_url='https://github.com/pocc/merakygen/releases',
+    url=__project_url__,
+    download_url='https://github.com/pocc/src/releases',
     license='Apache 2.0',
-    packages=['merakygen'],
+    packages=['src'],
     python_requires='>=3.5',
-    provides=['merakygen'],
+    provides=['src'],
     install_requires=[
         'requests',
         'yapf',
@@ -43,7 +43,7 @@ setup(
         'inflection'
     ],
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 3 - Alpha',
         'License :: OSI Approved :: Apache Software License',
         'Intended Audience :: Developers',
         'Intended Audience :: Information Technology',
@@ -56,10 +56,12 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Ruby',
+        'Programming Language :: Other Scripting Engines',  # Powershell
         'Topic :: System :: Monitoring',
         'Topic :: System :: Networking',
         'Topic :: System :: Networking :: Monitoring',
         'Topic :: Utilities',
     ],
-    entry_points={'console_scripts': ['pcapgraph = pcapgraph:run']},
+    entry_points={'console_scripts': ['src = src:src:main']},
 )

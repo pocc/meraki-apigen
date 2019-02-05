@@ -20,7 +20,7 @@ import json
 
 import requests
 
-from apigen._web import fetch_apidocs_json
+from src._web import fetch_apidocs_json
 
 
 with open('_vars.json') as myfile:

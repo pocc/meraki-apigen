@@ -20,7 +20,7 @@ camel case. As this is an external library, ignore this check.
 import unittest
 import json
 
-import examples.meraki_api as api
+import generated.meraki_api as api
 
 with open('../_apikey') as myfile:
     APIKEY = myfile.read()
