@@ -14,14 +14,14 @@
 # limitations under the License.
 """Main file for Meraki-APIgen. Should only import from project files."""
 
-import apigen._cli as cli
-import apigen._web as web
-import apigen.generate_method as make_method
+import merakygen._cli as cli
+import merakygen._web as web
+import merakygen.generate_method as make_method
 
-import apigen.make_python_script as mps
-import apigen.make_ruby_script as mrs
-import apigen.make_bash_script as mbs
-import apigen.make_powershell_script as mpss
+import merakygen.make_python_script as mps
+import merakygen.make_ruby_script as mrs
+import merakygen.make_bash_script as mbs
+import merakygen.make_powershell_script as mpss
 
 
 def main():

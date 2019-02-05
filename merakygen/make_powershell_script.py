@@ -12,15 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Generate a powershell module.
-
-Structure taken from https://github.com/pcgeek86/PSGitHub
-"""
+"""Generate a powershell module."""
 import re
 import os
 import subprocess as sp
+import shutil
 
-from . import __version__
+import merakygen
 
 
 def make_function(func_name, func_desc, func_args,
@@ -100,46 +98,97 @@ def make_classes(api_calls):
 
 
 class MakePSModule:
-    """Make a powershell module."""
+    """Make a powershell module.
+
+    Structure taken from https://github.com/pcgeek86/PSGitHub
+    """
     def __init__(self, module):
         self.module = module
         self.make_folders()
+        self.copy_entrypoint()
         self.make_module_manifest()
 
     def make_folders(self):
         """Make folders for Powershell module structure.
 
-        /PSMeraki
+        /MerakiAPI
             /Classes
             /Functions
                 /Private
                 /Public
-            PSMeraki.psd1
-            PSMeraki.psm1
+            MerakiAPI.psd1
+            MerakiAPI.psm1
         """
-        os.makedirs(self.module + '/Classes')
-        os.makedirs(self.module + '/Classes/Private')
-        os.makedirs(self.module + '/Classes/Public')
+        folders = [
+            self.module + '/Classes',
+            self.module + '/Functions/Private',
+            self.module + '/Functions/Public'
+        ]
+        for folder in folders:
+            if not os.path.isdir(folder):
+                os.makedirs(folder)
+
+    def copy_entrypoint(self):
+        """Copy the required entrypoint .psm1 file to the module."""
+        shutil.copy('assets/MerakiAPI.psm1', self.module)
+
+    @staticmethod
+    def find_ps_functions(file):
+        """Find all powershell functions in a file and return the list."""
+        with open(file) as ps_file:
+            ps_filetext = ps_file.read()
+        functions = re.findall(r'function ([A-Za-z-_]+)', ps_filetext)
+        return functions
+
+    @staticmethod
+    def convert_py_list_to_ps_list(python_list):
+        """Convert a python list (str) to a powershell list (str)."""
+        return '@(' + str(python_list)[1:-1] + ')'
 
     def make_module_manifest(self):
         """Generate the psd1 file required for PS packages."""
-        filename = os.getcwd() + '/' + self.module + '.psd1'
-        cmd_list = ['Powershell', 'New-ModuleManifest',
-                    '-Path', filename,
-                    '-PowerShellVersion', '5.0',
-                    '-Author', 'Ross Jacobs <rossbjacobs@gmail.com>',
-                    '-CompanyName', '',
-                    '-Copyright', 'Ross Jacobs 2019 All Rights Reserved.',
-                    '-RootModule', 'string',
-                    '-ModuleVersion', __version__,
-                    '-Description', <string>]
+        base_filename = os.getcwd() + '/' + self.module + '/'
+        ps_function_list = self.find_ps_functions('meraki_api.ps1')
+        ps_function_str = self.convert_py_list_to_ps_list(ps_function_list)
+        # Cannot supply entire changelog as max for -ReleaseNotes is 840 chars.
+        most_recent_release_notes = merakygen.__changelog__.split('\n\n')[0]
+        license_path = '/blob/master/LICENSE.txt'
+        powershell_cmd = 'pwsh'
+        cmd_list = [
+            powershell_cmd, '-Command', 'New-ModuleManifest',
+            '-Path', base_filename + self.module + '.psd1',
+            '-PowerShellVersion', '5.0',
+            '-Author', 'Ross Jacobs' + ' <rossbjacobs@gmail.com>',
+            '-CompanyName', 'Ross Jacobs',
+            '-Copyright', 'Ross Jacobs 2019 All Rights Reserved.',
+            '-ModuleVersion', merakygen.__version__,
+            '-Description', merakygen.__description__,
+            '-Tags', '@("Meraki", "API", "Networking")',
+            '-HelpInfoUri', merakygen.__project_url__,
+            '-ProjectUri', merakygen.__project_url__,
+            '-LicenseUri', merakygen.__project_url__ + license_path,
+            '-ReleaseNotes', most_recent_release_notes,
+            '-FunctionsToExport', ps_function_str,
+            '-RootModule', base_filename + self.module + '.psm1',
+        ]
+        # Sanitize after assigning for readability.
+        for index, cmd in enumerate(cmd_list):
+            cmd_list[index] = ps_sanitize(cmd)
+        sp_pipe = sp.Popen(cmd_list, stdout=sp.PIPE, stderr=sp.PIPE)
+        sp_outputs = sp_pipe.communicate()
+        if sp_outputs[0] or sp_outputs[1]:
+            print("PS MODULE STDOUT: " + sp_outputs[0].decode('utf-8') +
+                  "PS MODULE STDERR: " + sp_outputs[1].decode('utf-8'))
 
-        sp.Popen(
+
+def ps_sanitize(text):
+    """Add powershell escape chars to strings sent to powershell"""
+    text = re.sub(r'([ $#`<>])', '`\\1', text)
+    return text.replace('\n', '`n').replace('\t', '`t')
 
 
 def make_powershell_script(api_key, api_calls, preamble, options):
     """Make powershell script."""
-    MakePSModule(module='PSMeraki')
     output_file = 'meraki_api.ps1'
     generated_text = """\
 # -*- coding: utf-8 -*-
@@ -217,7 +266,8 @@ def graceful_exit(response):
         return response.status_code
 """.format(preamble, api_key)
     # Always use classes in powershell
-    generated_text += make_classes(api_calls)
+    # Todo Add classes for object types, but accessors as functions
+    # generated_text += make_classes(api_calls)
     whitespace_between_functions = '\n\n'
     for api_call in api_calls:
         generated_text += make_function(
@@ -231,3 +281,4 @@ def graceful_exit(response):
         print('\t- saving ' + output_file + '...')
         myfile.write(generated_text)
     print("\npowershell module generated!")
+    MakePSModule(module='MerakiAPI')

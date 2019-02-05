@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2019-02-04
+### Added
+* Added this Changelog
+
 ## [0.2.0] - 2019-01-31
 ### Added
 * Created toy ruby script to verify functionality
@@ -16,7 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Refactored Main function: Added line for cli options in preamble
 * This will allow users to see what options were used to generate this
     specific file.
-
 
 ## [0.1.1] - 2019-01-30
 ### Added
@@ -45,7 +48,8 @@ Fixed:      for any bug fixes.
 Security:   for vulnerability fixes.
 -->
 
-[Unreleased]: https://github.com/pocc/merakygen/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/pocc/merakygen/compare/v0.2.1...HEAD
+[0.2.0]: https://github.com/pocc/merakygen/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/pocc/merakygen/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/pocc/merakygen/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/pocc/merakygen/compare/v0.0.0...v0.1.0

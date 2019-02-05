@@ -115,7 +115,7 @@ def lint_output(file):
     if pylint_output.text and 'rated at 10.00/10' not in pylint_output.text:
         print(pylint_output.text + 54 * '#')
         print("## Pylint check is FAILING. Please submit an issue! ##")
-        print("## https://github.com/pocc/meraki-apigen/issues     ##")
+        print("## https://github.com/pocc/merakygen/issues     ##")
         print(54*"#")
 
 

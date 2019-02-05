@@ -20,7 +20,7 @@ import textwrap
 
 import inflection as inf
 
-from apigen import __version__ as apigen_version
+from merakygen import __version__ as apigen_version
 
 BASE_URL = 'https://api.meraki.com/api/v0'
 API_PRIMITIVES = {
@@ -111,7 +111,7 @@ def get_preamble(cli_options, num_api_calls, http_stats, lang):
     date = datetime.datetime.now().isoformat()
     options_str = ' '.join(cli_options)
     header = """Generated and linted at {}
-Using:  meraki-apigen --key <key> {}
+Using:  meraki-merakygen --key <key> {}
 Pulled data from Meraki API v0 (https://dashboard.meraki.com/api_docs/)
 API calls: {} {}
 
@@ -121,8 +121,8 @@ Meraki API Generator v{}
 
 More Info
     Author: Ross Jacobs (rosjacob [AT] cisco.com)
-    Github: https://github.com/pocc/meraki-apigen
-    Issues: https://github.com/pocc/meraki-apigen/issues
+    Github: https://github.com/pocc/meraki-merakygen
+    Issues: https://github.com/pocc/meraki-merakygen/issues
 """.format(date, options_str, num_api_calls, http_stats, apigen_version, lang)
     return header
 

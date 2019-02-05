@@ -16,7 +16,7 @@
     Code generator for the Meraki API
 
 USAGE:
-    meraki-apigen (--key <apikey>) [--language <name>]
+    meraki-merakygen (--key <apikey>) [--language <name>]
                   [--classy] [--lint] [--textwrap] [--sample-resp]
                   [-h | --help] [-v | --version]
 
@@ -41,7 +41,7 @@ OPTIONS:
 
 SEE ALSO:
     Contact: Ross Jacobs (rosjacob [AT] cisco.com)
-    Github: https://github.com/pocc/meraki-apigen
+    Github: https://github.com/pocc/meraki-merakygen
 """
 import sys
 import subprocess as sp
@@ -51,7 +51,7 @@ import docopt
 
 from requests import __version__ as requests_version
 from yapf import __version__ as yapf_version
-from apigen import __version__ as apigen_version
+from merakygen import __version__ as apigen_version
 
 
 def get_bash_version():
@@ -84,6 +84,21 @@ def get_ruby_versions():
         return msg, msg
 
 
+def get_powershell_version():
+    """Get the powershell version if it exists and a message if it does not.
+
+    Returns a string like 'PowerShell 6.1.2'
+    """
+    try:
+        cmd_list = ['pwsh', '--version']
+        sp_pipe = sp.Popen(cmd_list, stdout=sp.PIPE)
+        version_info = sp_pipe.communicate()[0].decode('utf-8')
+        return version_info
+    except FileNotFoundError:
+        msg = 'not found'
+        return msg
+
+
 def show_cli():
     """Show the docopt cli"""
     args = docopt.docopt(__doc__)
@@ -94,6 +109,7 @@ def show_cli():
         print('Testing/linting')
         ruby_ver, gem_ver = get_ruby_versions()
         print('\truby', ruby_ver, '\n\tgem', gem_ver)
+        print('\tbash', get_powershell_version())
         print('\tbash', get_bash_version())
         sys.exit()
     # Python is default

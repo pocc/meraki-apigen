@@ -15,7 +15,7 @@
 # limitations under the License.
 """Setup file."""
 from setuptools import setup
-from src import __version__, __description__, __project_url__
+from merakygen import __version__, __description__, __project_url__
 from codecs import open
 
 with open('README.md', encoding='utf-8') as file:
@@ -30,11 +30,11 @@ setup(
     author='Ross Jacobs',
     author_email='rossbjacobs@gmail.com',
     url=__project_url__,
-    download_url='https://github.com/pocc/src/releases',
+    download_url='https://github.com/pocc/merakygen/releases',
     license='Apache 2.0',
-    packages=['src'],
+    packages=['merakygen'],
     python_requires='>=3.5',
-    provides=['src'],
+    provides=['merakygen'],
     install_requires=[
         'requests',
         'yapf',
@@ -63,5 +63,5 @@ setup(
         'Topic :: System :: Networking :: Monitoring',
         'Topic :: Utilities',
     ],
-    entry_points={'console_scripts': ['src = src:src:main']},
+    entry_points={'console_scripts': ['merakygen = merakygen:merakygen:main']},
 )

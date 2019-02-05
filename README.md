@@ -9,7 +9,7 @@ supported language has the most recent API call accessors available.
 
 ## Description
 The module generated will have methods for any new API calls.
-For this reason, it may make sense to rerun meraki-apigen occasionally
+For this reason, it may make sense to rerun merakygengen occasionally
 to get an up-to-date script in your $language.
 
 This is still under active development.

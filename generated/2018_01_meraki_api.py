@@ -3,14 +3,14 @@
 Pulled via the Meraki API v0 (https://dashboard.meraki.com/api_docs/)
 API calls: 203 {GET: 118, POST: 26, PUT: 42, DELETE: 17}
 
-Meraki API Generator v0.0.0
+Meraki API Generator v{}
     Convert all Meraki API calls into [python] function calls.
     As new API calls are released all the time, rerun this occasionally.
 
 More Info
     Author: Ross Jacobs (rosjacob [AT] cisco.com)
-    Github: https://github.com/pocc/meraki-apigen
-    Issues: https://github.com/pocc/meraki-apigen/issues
+    Github: https://github.com/pocc/merakygengen
+    Issues: https://github.com/pocc/merakygengen/issues
 """
 import json
 import urllib.parse
