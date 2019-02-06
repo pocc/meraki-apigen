@@ -26,7 +26,6 @@ import merakygen
 def make_function(func_name, func_desc, func_args,
                   req_http_type, url_path):
     """Generate a powershell function given the paramaters."""
-    url_path = "\"" + url_path + "\""
     if func_args:
         # Add $ to variables and convert to camelCase
         func_args_list = ['$' + inf.camelize(arg, False)
@@ -38,18 +37,13 @@ def make_function(func_name, func_desc, func_args,
         for idx, match in enumerate(re.findall(r'\[[A-Za-z-_]*\]', url_path)):
             url_path = url_path.replace(match, str(func_args_list[idx]))
         func_args = ', '.join(func_args_list)
-    params_should_be_in_url = req_http_type in ['GET', 'DELETE']
+    params_should_be_in_url = req_http_type == 'GET'
     if 'params' in func_args:
+        assert req_http_type != 'DELETE'  # Delete should not have URL params.
         func_args = func_args.replace('params', 'params=\'\'')
         if params_should_be_in_url:
-            func_urlencoded_query = """
-    # urlencode gives us & when query needs ?
-    url_query = urllib.parse.urlencode(params)
-    url_query = '?' + url_query.replace('&', '?')"""
-            # Add additional format variable for params arg to be sent in
-            url_path = url_path.replace("\'.format", "{}\'.format")
-            assert url_path.count(')') <= 1  # Should only be format's )
-            url_path = url_path.replace(')', ', url_query)')
+            func_urlencoded_query = """$urlParams = ParseParams($params)"""
+            url_path += '$urlParams'
             req_data = '\'\''
         else:  # req_http_type in ['PUT', 'POST'], data in requests body
             func_urlencoded_query = ''
@@ -57,17 +51,19 @@ def make_function(func_name, func_desc, func_args,
     else:
         func_urlencoded_query = ''
         req_data = '\'\''
+    url_path = "\"" + url_path + "\""
     function_text = """function {0}({1}) {{
-    <#{2}#>{3}
-    $endpointUrl = {5}
-    return Invoke-ApiCall("{4}", $endpointUrl, {6})
+    <#{2}#>
+    {3}
+    $endpointUrl = {4}
+    return Invoke-ApiCall("{5}", $endpointUrl, {6})
 }}""".format(
         func_name,
         func_args,
         func_desc,
         func_urlencoded_query,
-        req_http_type.lower(),
         url_path,
+        req_http_type.lower(),
         req_data
     )
     return function_text
@@ -143,13 +139,13 @@ class MakePSModule:
 
     def copy_entrypoint(self):
         """Copy the required entrypoint .psm1 file to the module."""
-        shutil.copy('assets/MerakiAPI.psm1', self.module)
+        shutil.copy('../static/powershell/MerakiAPI.psm1', self.module)
 
     def copy_private_functions(self):
         """Copy shared private functions that generated functions use."""
-        files = os.listdir('assets/Private')
+        files = os.listdir('../static/powershell/Private')
         for file in files:
-            file = os.path.abspath('assets/Private/' + file)
+            file = os.path.abspath('../static/powershell/Private/' + file)
             shutil.copy(file, self.module + '/Functions/Private')
 
     @staticmethod

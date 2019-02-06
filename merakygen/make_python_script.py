@@ -23,16 +23,15 @@ import pylint.reporters.text as textreporter
 def make_function(func_name, func_desc, func_args,
                   req_http_type, req_url_format):
     """Generate a python function given the paramaters."""
-    params_should_be_in_url = req_http_type in ['GET', 'DELETE']
+    params_should_be_in_url = req_http_type in ['GET']
     if func_args:  # If there is more than the function description, +newline
         func_desc += '\n    '
     if 'params' in func_args:
+        assert req_http_type != 'DELETE'  # Delete should not have params.
         func_args = func_args.replace('params', 'params=\'\'')
         if params_should_be_in_url:
-            func_urlencoded_query = """
-    # urlencode gives us & when query needs ?
-    url_query = urllib.parse.urlencode(params)
-    url_query = '?' + url_query.replace('&', '?')"""
+            func_urlencoded_query = """         
+    url_query = '?' + '&'.join([key + '=' + params[key] for key in params])"""
             # Add additional format variable for params arg to be sent in
             req_url_format = req_url_format.replace("\'.format", "{}\'.format")
             assert req_url_format.count(')') <= 1  # Should only be format's )
@@ -125,7 +124,7 @@ def make_python_script(api_key, api_calls, preamble, options):
     generated_text = """\
 # -*- coding: utf-8 -*-
 \"\"\"{}\"\"\"
-import json\nimport urllib.parse\n\nimport requests\n
+import json\n\nimport requests\n
 BASE_URL = 'https://api.meraki.com/api/v0'
 HEADERS = {{
     'X-Cisco-Meraki-API-Key': '{}',
