@@ -206,7 +206,7 @@ def generate_api_call_words(http_type, api_path):
                 return [http_type] + word_list + ['by'] + words
         word_list.insert(0, word)
 
-    return [http_type] + word_list  # For GET /organizations, which has no [args]
+    return [http_type] + word_list  # For GET /organizations with no [args]
 
 
 def remove_html(target_string):

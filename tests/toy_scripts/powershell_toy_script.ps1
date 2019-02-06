@@ -296,7 +296,7 @@ class TestUtils {
     [hashtable] JsonToHashtable([string]$json) {
         # Convert Json to Hashtable (courtesy https://stackoverflow.com/questions/40495248)
         $hashtable = @{}
-        (ConvertFrom-Json $json).psobject.properties | Foreach { $hashtable[$_.Name] = $_.Value }
+        (ConvertFrom-Json $json).psobject.properties | Foreach-Object { $hashtable[$_.Name] = $_.Value }
         return $hashtable
     }
 }

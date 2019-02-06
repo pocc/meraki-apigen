@@ -18,17 +18,27 @@ import os
 import subprocess as sp
 import shutil
 
+import inflection as inf
+
 import merakygen
 
 
 def make_function(func_name, func_desc, func_args,
-                  req_http_type, req_url_format):
+                  req_http_type, url_path):
     """Generate a powershell function given the paramaters."""
-    params_should_be_in_url = req_http_type in ['GET', 'DELETE']
-    if func_args:  # If there is more than the function description, +newline
+    url_path = "\"" + url_path + "\""
+    if func_args:
+        # Add $ to variables and convert to camelCase
+        func_args_list = ['$' + inf.camelize(arg, False)
+                          for arg in func_args.split(', ')]
+        # $params are found in function call, not in format replacement
+        url_path = url_path.replace(', $params', '')
+        # If there is more than the function description, +newline
         func_desc += '\n    '
-        # Preface all func args with $
-        func_args = '$' + func_args.replace(', ', ', $')
+        for idx, match in enumerate(re.findall(r'\[[A-Za-z-_]*\]', url_path)):
+            url_path = url_path.replace(match, str(func_args_list[idx]))
+        func_args = ', '.join(func_args_list)
+    params_should_be_in_url = req_http_type in ['GET', 'DELETE']
     if 'params' in func_args:
         func_args = func_args.replace('params', 'params=\'\'')
         if params_should_be_in_url:
@@ -37,27 +47,27 @@ def make_function(func_name, func_desc, func_args,
     url_query = urllib.parse.urlencode(params)
     url_query = '?' + url_query.replace('&', '?')"""
             # Add additional format variable for params arg to be sent in
-            req_url_format = req_url_format.replace("\'.format", "{}\'.format")
-            assert req_url_format.count(')') <= 1  # Should only be format's )
-            req_url_format = req_url_format.replace(')', ', url_query)')
-            req_data = ''
+            url_path = url_path.replace("\'.format", "{}\'.format")
+            assert url_path.count(')') <= 1  # Should only be format's )
+            url_path = url_path.replace(')', ', url_query)')
+            req_data = '\'\''
         else:  # req_http_type in ['PUT', 'POST'], data in requests body
             func_urlencoded_query = ''
-            req_data = 'data=json.dumps(params), '
+            req_data = '$(ConvertTo-Json $params)'
     else:
         func_urlencoded_query = ''
-        req_data = ''
+        req_data = '\'\''
     function_text = """function {0}({1}) {{
     <#{2}#>{3}
-    response = requests.{4}(BASE_URL + {5},{6} headers=HEADERS)
-    return graceful_exit(response)
+    $endpointUrl = {5}
+    return Invoke-ApiCall("{4}", $endpointUrl, {6})
 }}""".format(
         func_name,
         func_args,
         func_desc,
         func_urlencoded_query,
         req_http_type.lower(),
-        req_url_format,
+        url_path,
         req_data
     )
     return function_text
@@ -89,7 +99,7 @@ def make_classes(api_calls):
                 func_desc=api_call['gen_func_desc'],
                 func_args=api_call['gen_func_args'],
                 req_http_type=api_call['http_method'],
-                req_url_format=api_call['gen_formatted_url'])
+                url_path=api_call['gen_formatted_url'])
             function_text += whitespace_between_methods
             # Class methods are indented one more than functions.
             indent_regex = r'\n([ ]*?[\S]+?)'  # Only indent text, not \n
@@ -107,6 +117,7 @@ class MakePSModule:
         self.module = module
         self.make_folders()
         self.copy_entrypoint()
+        self.copy_private_functions()
         self.make_module_manifest()
 
     def make_folders(self):
@@ -133,6 +144,13 @@ class MakePSModule:
     def copy_entrypoint(self):
         """Copy the required entrypoint .psm1 file to the module."""
         shutil.copy('assets/MerakiAPI.psm1', self.module)
+
+    def copy_private_functions(self):
+        """Copy shared private functions that generated functions use."""
+        files = os.listdir('assets/Private')
+        for file in files:
+            file = os.path.abspath('assets/Private/' + file)
+            shutil.copy(file, self.module + '/Functions/Private')
 
     @staticmethod
     def find_ps_functions(file):
@@ -189,6 +207,26 @@ def ps_sanitize(text):
     return text.replace('\n', '`n').replace('\t', '`t')
 
 
+def truncate_func_name(api_calls):
+    """Remove Verb-NounByNoun if it would not cause name collisions.
+
+    Unlike programming languages like python/ruby, the extra context
+    may not be helpful in usage.
+
+    If removing ByNoun... would produce a collision, keep all function names
+    that would produce that collision.
+    """
+    api_calls_sans_by = [re.sub(r'By.*$', '', api_call['gen_name'])
+                         for api_call in api_calls]
+    for api_call in api_calls:
+        truncated_name = re.sub(r'By.*$', '', api_call['gen_name'])
+        name_collision_exists = api_calls_sans_by.count(truncated_name) > 1
+        if not name_collision_exists:
+            api_call['gen_name'] = truncated_name
+
+    return api_calls
+
+
 def make_powershell_script(api_key, api_calls, preamble, options):
     """Make powershell script."""
     module_name = 'MerakiAPI'
@@ -201,7 +239,7 @@ def make_powershell_script(api_key, api_calls, preamble, options):
             func_desc=api_call['gen_func_desc'],
             func_args=api_call['gen_func_args'],
             req_http_type=api_call['http_method'],
-            req_url_format=api_call['gen_formatted_url']) \
+            url_path=api_call['path']) \
             + '\n'
         func_file_path = public_func_dir + '/' + api_call['gen_name'] + '.ps1'
         with open(func_file_path, 'w') as myfile:

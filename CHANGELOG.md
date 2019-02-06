@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+* Change output of make_powershell_module from one file to a folder of 
+functions (most Powershell projects use this project structure style.)
 
 ## [0.2.1] - 2019-02-04
 ### Added
