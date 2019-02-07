@@ -116,7 +116,7 @@ def get_func_args(func_args):
         new_api_primitives = set(func_args).difference(set(API_PRIMITIVES))
         for primitive in new_api_primitives:
             msg = 'WARNING: Untracked API Primitive: `' + primitive + \
-                  '`.\nPlease create an issue.'
+                  '`.\n' + 4*' ' + 'Please create an issue.'
             API_PRIMITIVES[primitive] = msg
             print(msg)
         for arg in func_args:
@@ -135,12 +135,13 @@ def get_function_params(api_call):
             has_nested_params = 'params' in param
             if has_nested_params:
                 func_params[param['name']] = {
-                    'description': param_description
+                    'description': param_description,
+                    'options': {},
                 }
 
                 for nested_param in param['params']:
-                    func_params[param['name']][nested_param['name']] = \
-                        nested_param['description']
+                    func_params[param['name']]['options'][
+                        nested_param['name']] = nested_param['description']
                     # Params should not be nested more than 2 deep.
                     if 'is_array' in nested_param:
                         assert(not nested_param['is_array'])

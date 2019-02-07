@@ -120,7 +120,7 @@ def lint_output(file):
 
 
 def make_google_style_docstring(description, args, link, params,
-                                return_type, return_string, is_classy):
+                                return_type, return_string):
     """Generate a function docstring in Google-style.
 
     Args:
@@ -130,7 +130,6 @@ def make_google_style_docstring(description, args, link, params,
         params (dict): Additional options for this function
         return_type (str): Type of object that function returns
         return_string (str): Any additional context to the return value
-        is_classy (bool): Whether this is a function or a method in a class
 
     Returns:
         Google-stlye docstring
@@ -188,7 +187,8 @@ def make_google_style_docstring(description, args, link, params,
             + indented_return_string
     else:
         return_docstring = return_type_str
-    func_docstring += '\n\n' + my_textwrap(return_docstring, indent=7)
+    if return_type != 'None':
+        func_docstring += '\n\n' + my_textwrap(return_docstring, indent=7)
 
     return func_docstring
 
@@ -250,8 +250,7 @@ def graceful_exit(response):
                 api_call['func_link'],
                 api_call['func_params'],
                 api_call['func_return_type'],
-                sample_resp,
-                'classy' in options)
+                sample_resp)
             generated_text += make_function(
                 func_name=api_call['gen_name'],
                 func_desc=api_call_func_desc,

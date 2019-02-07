@@ -14,12 +14,13 @@
 # limitations under the License.
 """Generate ruby script."""
 import re
+import textwrap
 
 
 def make_ruby_function(func_name, func_desc, func_args,
                        req_http_type, req_path):
     """Generate a ruby function given the paramaters."""
-    ruby_indented_func_desc = func_desc.replace('  ', ' ')
+    ruby_indented_func_desc = func_desc
 
     params_should_be_in_url = req_http_type in ['GET', 'DELETE']
     if func_args:  # If there is more than the function description, +newline
@@ -28,8 +29,7 @@ def make_ruby_function(func_name, func_desc, func_args,
         func_args = func_args.replace('params', 'params=nil')
         if params_should_be_in_url:
             func_urlencoded_query = """
-    url_query = URI::encode(params)
-    url_query = '?' + url_query.gsub('&', '?')"""
+    url_query = URI::encode(params)"""
             # Add additional format variable for params arg to be sent in
             req_data = '[]'
         else:  # req_http_type in ['PUT', 'POST'], data in requests body
@@ -43,20 +43,104 @@ def make_ruby_function(func_name, func_desc, func_args,
         req_path = re.sub(r'\[[a-zA-z-_]*?\]', infix_arg, req_path, count=1)
     if func_args:  # Don't add parentheses if no args (ruby syntactic sugar)
         func_args = '(' + func_args + ')'  # get_orgs() => get_orgs
-    function_text = """\ndef {0}{1}
-  <<-HEREDOC
-  {2}HEREDOC{3}
-  api_call('{4}', "#{{$base_url}}{5}", {6})
+    function_text = """
+{0}
+def {1}{2}
+{3}  api_call('{4}', "#{{$base_url}}{5}", {6})
 end""".format(
+        ruby_indented_func_desc,
         func_name,
         func_args,
-        ruby_indented_func_desc,
         func_urlencoded_query,
         req_http_type.upper(),
         req_path,
         req_data
     )
     return function_text
+
+
+def make_yard_docstring(description, args, link, params,
+                        return_type, return_string):
+    """Generate a yard doc for a function.
+
+    See https://gist.github.com/chetan/1827484#methods
+    Using:
+        @param: For regular arg
+        @option: For arg in the params variable
+        @see: For links
+        @example: For the sample resp provided by API docs
+        @return: For return value type
+
+    Args:
+        description (string): One or two sentence description of function
+        args (dict): All arguments and their descriptions
+        link (str): Link to the API call
+        params (dict): Additional options for this function
+        return_type (str): Type of object that function returns
+        return_string (str): Any additional context to the return value
+
+    Returns:
+        Yard-style docstring
+    """
+    ruby_docstring_width = 120 - len('# ')
+
+    def my_textwrap(text, indent=2):
+        """Wrap text with specific settings."""
+        text_lines = text.splitlines()
+        wrapped_lines = []
+        for line in text_lines:
+            wrapped_lines += textwrap.wrap(line,
+                                           width=ruby_docstring_width,
+                                           expand_tabs=True,
+                                           tabsize=2,
+                                           replace_whitespace=False,
+                                           subsequent_indent=indent*' ')
+        return '\n'.join(wrapped_lines)
+
+    if description[-1] != '.':
+        description += '.'
+    description = my_textwrap(description)
+
+    func_docstring = description + '\n'
+    if link:
+        func_docstring += '\n@see ' + link
+
+    args_docstring = ''
+    for arg in args:
+        args_docstring += '\n@param ' + arg + ' [String] ' + args[arg]
+    args_docstring = my_textwrap(args_docstring)
+    func_docstring += '\n' + args_docstring
+
+    if params:
+        for param in params:
+            if type(params[param]) == dict:  # Nested params
+                func_docstring += '\n@option ' + param + ' [Hash] ' + \
+                    params[param]['description']
+                for nested_param in params[param]['options']:
+                    np_line = '  @nestedoption ' + nested_param + ' ' \
+                              + params[param]['options'][nested_param]
+                    func_docstring += '\n' + my_textwrap(np_line, indent=4)
+            else:
+                param_line = '@option ' + param + ' [String] ' + params[param]
+                func_docstring += '\n' + my_textwrap(param_line)
+
+    convert_to_ruby_types = {
+        'None': 'nil',
+        'list': 'Array',
+        'dict': 'Hash',
+    }
+    return_type_str = '\n@return [' + convert_to_ruby_types[return_type] + ']'
+    if return_string:
+        indented_return_string = return_string.replace('\n', '\n    ')
+        return_docstring = return_type_str + '\n    ' + 'Example: ' \
+            + indented_return_string
+    else:
+        return_docstring = return_type_str
+    func_docstring += '\n' + my_textwrap(return_docstring)
+    func_docstring = re.sub(r'\n[\s]*↳', '\n   ↳', func_docstring)
+    func_docstring = '# ' + func_docstring.replace('\n', '\n# ')
+
+    return func_docstring
 
 
 def make_ruby_script(api_key, api_calls, preamble, options):
@@ -115,10 +199,20 @@ end
     if options:
         print("WARNING: Ruby options currently won't do anything.")
     whitespace_between_functions = '\n\n'
+    sample_resp = ''
     for api_call in api_calls:
+        if '--sample-resp' in options:
+            sample_resp = api_call['sample_resp']
+        api_call_func_desc = make_yard_docstring(
+                api_call['func_desc'],
+                api_call['func_args'],
+                api_call['func_link'],
+                api_call['func_params'],
+                api_call['func_return_type'],
+                sample_resp)
         generated_text += make_ruby_function(
             func_name=api_call['gen_name'],
-            func_desc=api_call['gen_func_desc'],
+            func_desc=api_call_func_desc,
             func_args=api_call['gen_func_args'],
             req_http_type=api_call['http_method'],
             req_path=api_call['path']) \
