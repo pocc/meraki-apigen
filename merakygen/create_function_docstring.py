@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Generate the function docstring given a function."""
-import textwrap
 import re
 
 
@@ -94,27 +93,24 @@ API_PRIMITIVES = {
 }
 
 
-def get_function_docstring(api_call, func_args, options):
+def get_function_docstring(api_call, func_args):
     """Get the function docstring."""
-    class_indent = bool('classy' not in options) * 4  # Classes need indent
-    recommended_width = 68 + class_indent
-
-    api_call['func_desc'] = get_func_description(
-        api_call, recommended_width, func_args)
+    api_call['func_desc'] = get_func_description(api_call['description'])
+    api_call['func_args'] = get_func_args(func_args)
     api_call['func_link'] = get_api_link(api_call)
-    api_call['func_params'] = get_function_params(api_call, recommended_width)
-    api_call['func_return'] = get_func_returns(
-        api_call['sample_resp'], '--sample-resp' in options)
+    api_call['func_params'] = get_function_params(api_call)
+    api_call['func_return_type'] = get_func_type(api_call['sample_resp'])
     return api_call
 
 
-def get_func_description(api_call, recommended_width, func_args):
+def get_func_description(api_call_description):
     """Get the function description, including Args names: descriptions."""
-    api_call['description'] = remove_html(api_call['description'])
-    func_desc = textwrap.fill(api_call['description'],
-                              width=recommended_width,
-                              subsequent_indent=7 * ' ')
+    return remove_html(api_call_description)
 
+
+def get_func_args(func_args):
+    """Get the function args."""
+    func_args_with_descs = {}
     # params sometimes has a value of None or is not a key at all
     if func_args:
         new_api_primitives = set(func_args).difference(set(API_PRIMITIVES))
@@ -123,31 +119,36 @@ def get_func_description(api_call, recommended_width, func_args):
                   '`.\nPlease create an issue.'
             API_PRIMITIVES[primitive] = msg
             print(msg)
-        func_desc += '\n\n    Args:'
-        func_desc += ''.join(['\n        @' + arg + ': ' +
-                              API_PRIMITIVES[arg] for arg in func_args])
+        for arg in func_args:
+            func_args_with_descs[arg] = API_PRIMITIVES[arg]
 
-    return func_desc
+    return func_args_with_descs
 
 
-def get_function_params(api_call, recommended_width):
+def get_function_params(api_call):
     """Get the function parameters from the API call."""
-    func_param_descs = []
     has_params = 'params' in api_call and api_call['params']
+    func_params = {}
     if has_params:
-        func_param_descs.append('\n\n    Params: (dict)')
-        for param in api_call['params']:
-            param['description'] = remove_html(param['description'])
-            func_param_descs.append('\n        - ' + param['name'] + ': '
-                                    + param['description'])
-    if func_param_descs and len(max(func_param_descs, key=len)) > 75:
-        for idx, desc in enumerate(func_param_descs):
-            # Add each wrapped line to the desc param list
-            func_param_descs[idx] = textwrap.fill(desc,
-                                                  width=recommended_width,
-                                                  replace_whitespace=False,
-                                                  subsequent_indent=11 * ' ')
-    return ''.join(func_param_descs)
+        for index, param in enumerate(api_call['params']):
+            param_description = remove_html(param['description'])
+            has_nested_params = 'params' in param
+            if has_nested_params:
+                func_params[param['name']] = {
+                    'description': param_description
+                }
+
+                for nested_param in param['params']:
+                    func_params[param['name']][nested_param['name']] = \
+                        nested_param['description']
+                    # Params should not be nested more than 2 deep.
+                    if 'is_array' in nested_param:
+                        assert(not nested_param['is_array'])
+                    assert('params' not in nested_param)
+            else:
+                func_params[param['name']] = param_description
+
+    return func_params
 
 
 def get_api_link(api_call):
@@ -159,20 +160,12 @@ def get_api_link(api_call):
     return APIDOCS_BASE_URL + '#' + hypenated_link_words
 
 
-def get_func_returns(sample_resp, has_add_resp):
+def get_func_type(sample_resp):
     """Get the function's description return part"""
     # ( is first char of (empty)
-    type_dict = {'(': '(None)', '[': '(list)', '{': '(dict)'}
+    type_dict = {'(': 'None', '[': 'list', '{': 'dict'}
     sample_resp_first_letter = sample_resp[0]
-    func_return_type = type_dict[sample_resp_first_letter]
-    func_return = '\n\n    Returns: ' + func_return_type
-    if has_add_resp:  # Adding the sample response is a configurable option.
-        sample_resp = sample_resp.replace('\n', '\n' + 8*' ')
-        func_return += '\n' + 8*' ' + 'Sample Resp:\n' + 8*' ' + sample_resp
-    else:
-        func_return += '\n'
-
-    return func_return
+    return type_dict[sample_resp_first_letter]
 
 
 def remove_html(target_string):

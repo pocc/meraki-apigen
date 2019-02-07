@@ -14,6 +14,7 @@
 # limitations under the License.
 """Generate python script."""
 import re
+import textwrap
 
 import yapf
 import pylint.lint as pylinter
@@ -118,10 +119,78 @@ def lint_output(file):
         print(54*"#")
 
 
-def make_func_desc(api_call):
-    """Generate the function description."""
-    return api_call['func_desc'] +  api_call['func_link'] \
-           + api_call['func_params'] + api_call['func_return']
+def make_google_style_docstring(description, args, link, params,
+                                return_type, return_string, is_classy):
+    """Generate a function docstring in Google-style.
+
+    Args:
+        description (string): One or two sentence description of function
+        args (dict): All arguments and their descriptions
+        link (str): Link to the API call
+        params (dict): Additional options for this function
+        return_type (str): Type of object that function returns
+        return_string (str): Any additional context to the return value
+        is_classy (bool): Whether this is a function or a method in a class
+
+    Returns:
+        Google-stlye docstring
+    """
+    python_docstring_width = 72
+
+    def my_textwrap(text, indent=4):
+        """Wrap text with specific settings."""
+        text_lines = text.splitlines()
+        wrapped_lines = []
+        for line in text_lines:
+            wrapped_lines += textwrap.wrap(line,
+                                           width=python_docstring_width,
+                                           expand_tabs=True,
+                                           tabsize=4,
+                                           replace_whitespace=False,
+                                           subsequent_indent=indent*' ')
+        return '\n'.join(wrapped_lines)
+
+    if description[-1] != '.':
+        description += '.'
+    description = my_textwrap(description, indent=7)
+
+    func_docstring = description + '\n\n'
+    if link:
+        func_docstring += 4*' ' + link + '\n'
+
+    args_docstring = '\n\n\tArgs:'
+    for arg in args:
+        args_docstring += '\n        ' + arg + ' (str): ' + args[arg]
+    args_docstring = my_textwrap(args_docstring, indent=11)
+    func_docstring += '\n' + args_docstring
+
+    if params:
+        for param in params:
+            if type(params[param]) == dict:  # Nested params
+                param_line = '\t\t\t' + param + ' (list(dict)): ' + \
+                             params[param]['description']
+                # Remove description from nested_param list
+                params[param].pop('description', None)
+                func_docstring += '\n' + my_textwrap(param_line, indent=16) + \
+                                  '\n\n' + 16*' ' + 'options:'
+                for nested_param in params[param]:
+                    np_line = '\t\t\t\t\t' + nested_param + ': ' \
+                              + params[param][nested_param]
+                    func_docstring += '\n' + my_textwrap(np_line, indent=24)
+            else:
+                param_line = '\t\t\t' + param + ': ' + params[param]
+                func_docstring += '\n' + my_textwrap(param_line, indent=16)
+
+    return_type_str = '\n\t' + 'Returns: ' + return_type
+    if return_string:
+        indented_return_string = return_string.replace('\n', '\n\t\t')
+        return_docstring = return_type_str + '\n\t\t' + 'Example: ' \
+            + indented_return_string
+    else:
+        return_docstring = return_type_str
+    func_docstring += '\n\n' + my_textwrap(return_docstring, indent=7)
+
+    return func_docstring
 
 
 def make_python_script(api_key, api_calls, preamble, options):
@@ -171,8 +240,18 @@ def graceful_exit(response):
         generated_text += make_classy(api_calls)
     else:
         whitespace_between_functions = '\n\n'
+        sample_resp = ''
         for api_call in api_calls:
-            api_call_func_desc = make_func_desc(api_call)
+            if '--sample-resp' in options:
+                sample_resp = api_call['sample_resp']
+            api_call_func_desc = make_google_style_docstring(
+                api_call['func_desc'],
+                api_call['func_args'],
+                api_call['func_link'],
+                api_call['func_params'],
+                api_call['func_return_type'],
+                sample_resp,
+                'classy' in options)
             generated_text += make_function(
                 func_name=api_call['gen_name'],
                 func_desc=api_call_func_desc,

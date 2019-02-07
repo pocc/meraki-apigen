@@ -16,7 +16,7 @@
 
 import merakygen._cli as cli
 import merakygen._web as web
-import merakygen.generate_method as make_method
+import merakygen.create_method as make_method
 
 import merakygen.make_python_script as mps
 import merakygen.make_ruby_script as mrs

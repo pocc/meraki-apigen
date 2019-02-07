@@ -20,7 +20,7 @@ import collections
 import inflection as inf
 
 from merakygen import __version__ as apigen_version
-import merakygen.create_function_docstring as docstring
+import merakygen.create_function_docstring as docs
 
 API_BASE_URL = 'https://api.meraki.com/api/v0'
 
@@ -173,8 +173,7 @@ def modify_api_calls(api_json, options, language):
         has_params = 'params' in api_call and api_call['params']
         func_args = get_path_args(api_call['path'], has_params)
         api_calls[index]['gen_func_args'] = ', '.join(func_args)
-        api_calls[index] = docstring.get_function_docstring(
-            api_call, func_args, options)
+        api_calls[index] = docs.get_function_docstring(api_call, func_args)
 
         is_post_or_put = api_call['http_method'] in ['POST', 'PUT']
         # If put/post, then params will be requests' data={'key': 'value'}
