@@ -118,6 +118,12 @@ def lint_output(file):
         print(54*"#")
 
 
+def make_func_desc(api_call):
+    """Generate the function description."""
+    return api_call['func_desc'] +  api_call['func_link'] \
+           + api_call['func_params'] + api_call['func_return']
+
+
 def make_python_script(api_key, api_calls, preamble, options):
     """Make python script."""
     output_file = 'meraki_api.py'
@@ -166,9 +172,10 @@ def graceful_exit(response):
     else:
         whitespace_between_functions = '\n\n'
         for api_call in api_calls:
+            api_call_func_desc = make_func_desc(api_call)
             generated_text += make_function(
                 func_name=api_call['gen_name'],
-                func_desc=api_call['gen_func_desc'],
+                func_desc=api_call_func_desc,
                 func_args=api_call['gen_func_args'],
                 req_http_type=api_call['http_method'],
                 req_url_format=api_call['gen_formatted_url']) \

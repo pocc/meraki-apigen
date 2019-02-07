@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 * Change output of make_powershell_module from one file to a folder of 
 functions (most Powershell projects use this project structure style.)
+* Powershell encodes url params
+* Apidocs now gets cached to reduce network requests (last modified needs
+  to be < 24 hours)
 
 ## [0.2.1] - 2019-02-04
 ### Added
