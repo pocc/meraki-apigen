@@ -28,7 +28,7 @@ def main():
     """Main func.
     Should take care of all functions that are shared across languages."""
     api_key, language, options = cli.show_cli()
-    api_json = web.fetch_apidocs_json()
+    api_json = web.fetch_meraki_apidocs_json()
 
     api_calls = make_method.modify_api_calls(api_json, options, language)
     http_stats = make_method.get_http_stats(api_calls)

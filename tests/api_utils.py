@@ -20,7 +20,7 @@ import json
 
 import requests
 
-from merakygen._web import fetch_apidocs_json
+from merakygen._web import fetch_meraki_apidocs_json
 
 
 with open('_vars.json') as myfile:
@@ -58,7 +58,7 @@ def eg_get_networks(org_id=None):
 def save_apidocs_json_locally():
     """Save the APIdocs JSON to a file."""
     with open('api.json', 'w') as json_file:
-        api_json = fetch_apidocs_json()
+        api_json = fetch_meraki_apidocs_json()
         # Add newline to beginning of each API call for readability.
         json_text = json.dumps(api_json).replace('{"http', '\n{"http')
         json_file.write(json_text)
@@ -68,7 +68,7 @@ def test_api():
     """Test API GET calls."""
     org_id = eg_get_orgs()[0]['id']
     ntwk_id = eg_get_networks()[0]['id']
-    api_json = fetch_apidocs_json()
+    api_json = fetch_meraki_apidocs_json()
     responses = {}
     for api_call in api_json:
         if api_call['http_method'] == 'GET':

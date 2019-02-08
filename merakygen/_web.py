@@ -20,8 +20,8 @@ import time
 import requests
 
 
-def fetch_apidocs_json():
-    """Get all API calls from the docs.
+def fetch_meraki_apidocs_json():
+    """Get all Meraki API calls from the official docs.
 
     * apidocs json is shipped with projcet at merakygen/static/api.json
     * This will be used if there is no network connection, but

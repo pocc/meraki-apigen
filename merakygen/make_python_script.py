@@ -166,15 +166,13 @@ def make_google_style_docstring(description, args, link, params,
     if params:
         for param in params:
             if type(params[param]) == dict:  # Nested params
-                param_line = '\t\t\t' + param + ' (list(dict)): ' + \
+                param_line = '\t\t\t' + param + ' (list): ' + \
                              params[param]['description']
-                # Remove description from nested_param list
-                params[param].pop('description', None)
                 func_docstring += '\n' + my_textwrap(param_line, indent=16) + \
-                                  '\n\n' + 16*' ' + 'options:'
-                for nested_param in params[param]:
+                                  '\n' + 16*' ' + '↳ options:'
+                for nested_param in params[param]['options']:
                     np_line = '\t\t\t\t\t' + nested_param + ': ' \
-                              + params[param][nested_param]
+                              + params[param]['options'][nested_param]
                     func_docstring += '\n' + my_textwrap(np_line, indent=24)
             else:
                 param_line = '\t\t\t' + param + ': ' + params[param]

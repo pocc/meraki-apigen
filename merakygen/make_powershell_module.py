@@ -17,6 +17,7 @@ import re
 import os
 import subprocess as sp
 import shutil
+import textwrap
 
 import inflection as inf
 
@@ -32,8 +33,6 @@ def make_function(func_name, func_desc, func_args,
                           for arg in func_args.split(', ')]
         # $params are found in function call, not in format replacement
         url_path = url_path.replace(', $params', '')
-        # If there is more than the function description, +newline
-        func_desc += '\n    '
         for idx, match in enumerate(re.findall(r'\[[A-Za-z-_]*\]', url_path)):
             url_path = url_path.replace(match, str(func_args_list[idx]))
         func_args = ', '.join(func_args_list)
@@ -52,8 +51,11 @@ def make_function(func_name, func_desc, func_args,
         func_urlencoded_query = ''
         req_data = '\'\''
     url_path = "\"" + url_path + "\""
-    function_text = """function {0}({1}) {{
-    <#{2}#>
+    function_text = """\
+function {0}({1}) {{
+<#
+{2}
+#>
     {3}
     $endpointUrl = {4}
     return Invoke-ApiCall("{5}", $endpointUrl, {6})
@@ -69,11 +71,123 @@ def make_function(func_name, func_desc, func_args,
     return function_text
 
 
-def generate_function_docstring(func_docstring):
+def make_function_comment(preamble, description, args, link, params,
+                          return_type, return_string):
     """Based on
 
     https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_comment_based_help?view=powershell-6
+    Generate Powershell comments-based help. Each item will start with a '.',
+    be all caps, and have a newline following its section.
+
+        Example:
+            <#
+            .SYNOPSIS
+                Create an admin.
+
+            .PARAMETER
+                ...
+            #>
+
+    Args:
+        preamble (str): An "about this program" added to every function.
+        description (string): One or two sentence description of function
+        args (dict): All arguments and their descriptions
+        link (str): Link to the API call
+        params (dict): Additional options for this function
+        return_type (str): Type of object that function returns
+        return_string (str): Any additional context to the return value
+
+    Returns:
+        Google-stlye docstring
     """
+    # Powershell code should wrap at 120, but Get-Help wraps comments at 84.
+    powershell_docstring_width = 84
+    # Translate all variable names into camelCase
+    for arg in list(args):
+        args[inf.camelize(arg, False)] = args[arg]
+        args.pop(arg)
+
+    def my_textwrap(text, indent=0):
+        """Wrap text with specific settings."""
+        text_lines = text.splitlines()
+        wrapped_lines = []
+        for line in text_lines:
+            wrapped_lines += textwrap.wrap(line,
+                                           width=powershell_docstring_width,
+                                           expand_tabs=True,
+                                           tabsize=4,
+                                           replace_whitespace=False,
+                                           subsequent_indent=indent*' ')
+        return '\n'.join(wrapped_lines)
+
+    comment_sections = []
+    if description[-1] != '.':
+        description += '.'
+    synopsis = '.SYNOPSIS' + '\n' + my_textwrap(description)
+    comment_sections += [synopsis]
+
+    comment_sections += ['.DESCRIPTION\n' + preamble]
+
+    if link:
+        comment_sections += ['.LINK\n' + link]
+
+    args_docstring = ''
+    for arg in args:
+        args_docstring += '.PARAMETER ' + arg + '\n ' + args[arg]
+    args_docstring = my_textwrap(args_docstring)
+    comment_sections += [args_docstring]
+
+    if params:
+        parameter_docstring = '.PARAMETER params\nJSON string ' \
+                              'like \'{"key":"value", ...}\''
+        for param in params:
+            if type(params[param]) == dict:  # Nested params
+                # Remove the s from param (if it has nested, it WILL have an s)
+                param_element = param[:-1]
+                parameter_docstring += '\n\nKEY "' + param + '": ' + \
+                    params[param]['description'] + '\n    [$' + \
+                    param_element + ', ...], $' + param_element + ' = {'
+                np_line_list = []
+                for nested_param in params[param]['options']:
+                    nested_description = params[param]['options'][nested_param]
+                    np_line_list.append('\t\t"' + nested_param + '": $(' +
+                                        nested_description + ')')
+                np_lines = ',\n'.join(np_line_list)
+                parameter_docstring += '\n' + my_textwrap(np_lines, indent=4)
+                parameter_docstring += '\n    ' + '}'
+            else:
+                param_ln = 'KEY "' + param + '": ' + params[param]
+                parameter_docstring += '\n\n' + my_textwrap(param_ln, indent=4)
+
+        # my_textwrap should have taken all tabs out of parameter_docstring
+        assert('\t' not in parameter_docstring)
+        comment_sections += [parameter_docstring]
+
+    convert_to_ps_types = {
+        'None': '',
+        'list': 'System.Collections.Arraylist',
+        'dict': 'System.Collections.Hashtable',
+    }
+    return_type_str = '.OUTPUTS\nSystem.String. Can be converted to' + \
+                      ' [' + convert_to_ps_types[return_type] + ']'
+    output_str = my_textwrap(return_type_str)
+    if return_string:
+        return_string = '  \'' + return_string.replace('\n', '\n  ')
+        output_str += '\n\nSample Response:\n' + return_string + '\''
+    comment_sections += [output_str]
+
+    func_docstring = '\n\n'.join(comment_sections)
+    # Change indent for lines with ↳ to 4 spaces.
+    func_docstring = re.sub(r'\n[\s]*↳', '\n     ↳', func_docstring)
+    # Indent comments (.VAR -> 1\t, var's description -> 2\t)
+    func_docstring = re.sub(r'\n([ ]*[^\.\n])', '\n    \\1', func_docstring)
+
+    return func_docstring
+
+
+def get_func_inputs():
+    """Generate the function inputs."""
+    return 'pass'
 
 
 def make_classes(api_calls):
@@ -155,13 +269,10 @@ class MakePSModule:
             file = os.path.abspath('../static/powershell/Private/' + file)
             shutil.copy(file, self.module + '/Functions/Private')
 
-    @staticmethod
-    def find_ps_functions(file):
-        """Find all powershell functions in a file and return the list."""
-        with open(file) as ps_file:
-            ps_filetext = ps_file.read()
-        functions = re.findall(r'function ([A-Za-z-_]+)', ps_filetext)
-        return functions
+    def find_ps_functions(self):
+        """Find all powershell functions in folder and return the list."""
+        ps_files = os.listdir(self.module + '/Functions/Public')
+        return [ps_file.replace('.ps1', '') for ps_file in ps_files]
 
     @staticmethod
     def convert_py_list_to_ps_list(python_list):
@@ -171,7 +282,7 @@ class MakePSModule:
     def make_module_manifest(self):
         """Generate the psd1 file required for PS packages."""
         base_filename = os.getcwd() + '/' + self.module + '/'
-        ps_function_list = self.find_ps_functions('meraki_api.ps1')
+        ps_function_list = self.find_ps_functions()
         ps_function_str = self.convert_py_list_to_ps_list(ps_function_list)
         # Cannot supply entire changelog as max for -ReleaseNotes is 840 chars.
         most_recent_release_notes = merakygen.__changelog__.split('\n\n')[0]
@@ -233,13 +344,23 @@ def truncate_func_name(api_calls):
 def make_powershell_script(api_key, api_calls, preamble, options):
     """Make powershell script."""
     module_name = 'MerakiAPI'
-    MakePSModule(module=module_name)
 
     public_func_dir = os.getcwd() + '/' + module_name + '/Functions/Public'
+    sample_resp = ''
     for api_call in api_calls:
+        if '--sample-resp' in options:
+            sample_resp = api_call['sample_resp']
+        api_call_function_comment = make_function_comment(
+            preamble,
+            api_call['func_desc'],
+            api_call['func_args'],
+            api_call['func_link'],
+            api_call['func_params'],
+            api_call['func_return_type'],
+            sample_resp)
         generated_text = make_function(
             func_name=api_call['gen_name'],
-            func_desc=api_call['gen_func_desc'],
+            func_desc=api_call_function_comment,
             func_args=api_call['gen_func_args'],
             req_http_type=api_call['http_method'],
             url_path=api_call['path']) \
@@ -249,4 +370,5 @@ def make_powershell_script(api_key, api_calls, preamble, options):
             print('\t- saving ' + api_call['gen_name'] + '.ps1' + ' ...')
             myfile.write(generated_text)
 
+    MakePSModule(module=module_name)
     print("\npowershell module generated!")

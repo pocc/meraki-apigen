@@ -16,6 +16,8 @@
 import re
 import textwrap
 
+import inflection as inf
+
 
 def make_ruby_function(func_name, func_desc, func_args,
                        req_http_type, req_path):
@@ -83,6 +85,10 @@ def make_yard_docstring(description, args, link, params,
         Yard-style docstring
     """
     ruby_docstring_width = 120 - len('# ')
+    # Translate all variable names into camelCase
+    for arg in args:
+        args[inf.camelize(arg, False)] = args[arg]
+        args.pop(arg)
 
     def my_textwrap(text, indent=2):
         """Wrap text with specific settings."""
@@ -114,7 +120,7 @@ def make_yard_docstring(description, args, link, params,
     if params:
         for param in params:
             if type(params[param]) == dict:  # Nested params
-                func_docstring += '\n@option ' + param + ' [Hash] ' + \
+                func_docstring += '\n@option ' + param + ' [List] ' + \
                     params[param]['description']
                 for nested_param in params[param]['options']:
                     np_line = '  @nestedoption ' + nested_param + ' ' \
@@ -131,9 +137,7 @@ def make_yard_docstring(description, args, link, params,
     }
     return_type_str = '\n@return [' + convert_to_ruby_types[return_type] + ']'
     if return_string:
-        indented_return_string = return_string.replace('\n', '\n    ')
-        return_docstring = return_type_str + '\n    ' + 'Example: ' \
-            + indented_return_string
+        return_docstring = return_type_str + '\n@example ' + return_string
     else:
         return_docstring = return_type_str
     func_docstring += '\n' + my_textwrap(return_docstring)

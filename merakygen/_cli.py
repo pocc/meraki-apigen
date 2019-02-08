@@ -16,7 +16,7 @@
     Code generator for the Meraki API
 
 USAGE:
-    meraki-merakygen (--key <apikey>) [--language <name>]
+    meraki-merakygen (--key <apikey>) [--language <name>] [--targetapi <api>]
                   [--classy] [--lint] [--textwrap] [--sample-resp]
                   [-h | --help] [-v | --version]
 
@@ -31,6 +31,7 @@ OPTIONS:
                         python, ruby, bash, and powershell. If no language is
                         specified, python will be used.
                         For ruby linting, ruby/gem will need to be installed.
+  --targetapi <api>     The API that is being targeted. Default is Meraki.
   -c, --classy          Use classes instead of a function list.
   -l, --lint            Call Pylint. If not 10.00/10, print error text.
   -r, --sample-resp     Add the sample response to function documentation.

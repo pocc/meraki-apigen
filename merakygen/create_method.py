@@ -34,22 +34,23 @@ def get_http_stats(api_calls):
 
 def get_preamble(cli_options, num_api_calls, http_stats, lang):
     """Generate the docstring header at the top of the file."""
+    cli_options.insert(0, lang)
     date = datetime.datetime.now().isoformat()
     options_str = ' '.join(cli_options)
-    header = """Generated and linted at {}
-Using:  meraki-merakygen --key <key> {}
-Pulled data from Meraki API v0 (https://dashboard.meraki.com/api_docs/)
-API calls: {} {}
+    header = """Generated @ {}
+Command: `merakygen --key <key> --language {}`
 
 Meraki API Generator v{}
     Convert all Meraki API calls into [{}] function calls.
     As new API calls are released all the time, rerun this occasionally.
+    Pulled data from Meraki API v0 (https://dashboard.meraki.com/api_docs/)
+    API calls: {} {}
 
 More Info
     Author: Ross Jacobs (rosjacob [AT] cisco.com)
     Github: https://github.com/pocc/meraki-merakygen
-    Issues: https://github.com/pocc/meraki-merakygen/issues
-""".format(date, options_str, num_api_calls, http_stats, apigen_version, lang)
+    Issues: https://github.com/pocc/meraki-merakygen/issues\
+""".format(date, options_str,  apigen_version, lang, num_api_calls, http_stats)
     return header
 
 

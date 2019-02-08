@@ -14,7 +14,7 @@
 """Package merakygen."""
 import re
 
-__version__ = '0.2.0'
+__version__ = '0.2.1'
 __description__ = 'Generate a module to access the Meraki API in $language'
 __project_url__ = 'https://github.com/pocc/merakygen'
 
