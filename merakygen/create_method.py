@@ -48,8 +48,8 @@ Meraki API Generator v{}
 
 More Info
     Author: Ross Jacobs (rosjacob [AT] cisco.com)
-    Github: https://github.com/pocc/meraki-merakygen
-    Issues: https://github.com/pocc/meraki-merakygen/issues\
+    Github: https://github.com/pocc/merakygen
+    Issues: https://github.com/pocc/merakygen/issues\
 """.format(date, options_str,  apigen_version, lang, num_api_calls, http_stats)
     return header
 

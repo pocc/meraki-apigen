@@ -24,45 +24,59 @@ import inflection as inf
 import merakygen
 
 
-def make_function(func_name, func_desc, func_args,
+def make_function(func_name, func_desc, func_args_descs,
                   req_http_type, url_path):
     """Generate a powershell function given the paramaters."""
-    if func_args:
+    if func_args_descs:
         # Add $ to variables and convert to camelCase
-        func_args_list = ['$' + inf.camelize(arg, False)
-                          for arg in func_args.split(', ')]
+        func_params = 'param('
+        func_param_list = []
+        for index, arg in enumerate(func_args_descs):
+            param_options = 'Position={}'.format(index)
+            if 'params' not in arg:
+                param_options += ', Mandatory=$True'
+            param_options += ', HelpMessage=' + func_args_descs[arg]
+            func_param_list += ['\n[parameter({})]'.format(param_options) +
+                                '\n[String]$' + inf.camelize(arg, False)]
+        func_params += ','.join(func_param_list)
         # $params are found in function call, not in format replacement
         url_path = url_path.replace(', $params', '')
-        for idx, match in enumerate(re.findall(r'\[[A-Za-z-_]*\]', url_path)):
-            url_path = url_path.replace(match, str(func_args_list[idx]))
-        func_args = ', '.join(func_args_list)
+        # Replace [args] in url path with the camelCase variable names.
+        regex = r'[\[\{][A-Za-z-_]*[\]\}]'
+        for idx, match in enumerate(re.findall(regex, url_path)):
+            index_arg = '$' + inf.camelize(list(func_args_descs)[idx], False)
+            url_path = url_path.replace(match, index_arg)
+        func_params += '\n)'
+    else:
+        func_params = 'param()'
     params_should_be_in_url = req_http_type == 'GET'
-    if 'params' in func_args:
+    if 'params' in list(func_args_descs):
         assert req_http_type != 'DELETE'  # Delete should not have URL params.
-        func_args = func_args.replace('params', 'params=\'\'')
+        func_params = func_params.replace('params', 'params=\'\'')
         if params_should_be_in_url:
             func_urlencoded_query = """$urlParams = ParseParams($params)"""
             url_path += '$urlParams'
             req_data = '\'\''
         else:  # req_http_type in ['PUT', 'POST'], data in requests body
             func_urlencoded_query = ''
-            req_data = '$(ConvertTo-Json $params)'
+            req_data = '$params'
     else:
         func_urlencoded_query = ''
         req_data = '\'\''
     url_path = "\"" + url_path + "\""
     function_text = """\
-function {0}({1}) {{
+function {0} {{
 <#
-{2}
+{1}
 #>
+[cmdletbinding()]
+{2}
     {3}
-    $endpointUrl = {4}
-    return Invoke-ApiCall("{5}", $endpointUrl, {6})
+    return Invoke-ApiCall "{5}" {4} {6}
 }}""".format(
         func_name,
-        func_args,
         func_desc,
+        func_params,
         func_urlencoded_query,
         url_path,
         req_http_type.lower(),
@@ -72,7 +86,7 @@ function {0}({1}) {{
 
 
 def make_function_comment(preamble, description, args, link, params,
-                          return_type, return_string):
+                          return_type, call_path, return_string):
     """Based on
 
     https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_comment_based_help?view=powershell-6
@@ -95,17 +109,19 @@ def make_function_comment(preamble, description, args, link, params,
         link (str): Link to the API call
         params (dict): Additional options for this function
         return_type (str): Type of object that function returns
+        call_path (str): /path/to/endpoint/url, ('path' key in orig json)
         return_string (str): Any additional context to the return value
 
     Returns:
-        Google-stlye docstring
+        Powershell-stlye function comment
     """
     # Powershell code should wrap at 120, but Get-Help wraps comments at 84.
     powershell_docstring_width = 84
     # Translate all variable names into camelCase
-    for arg in list(args):
-        args[inf.camelize(arg, False)] = args[arg]
-        args.pop(arg)
+    local_args = dict(args)
+    for arg in list(local_args):
+        local_args[inf.camelize(arg, False)] = local_args[arg]
+        local_args.pop(arg)
 
     def my_textwrap(text, indent=0):
         """Wrap text with specific settings."""
@@ -132,8 +148,8 @@ def make_function_comment(preamble, description, args, link, params,
         comment_sections += ['.LINK\n' + link]
 
     args_docstring = ''
-    for arg in args:
-        args_docstring += '.PARAMETER ' + arg + '\n ' + args[arg]
+    for arg in local_args:
+        args_docstring += '.PARAMETER ' + arg + '\n ' + local_args[arg]
     args_docstring = my_textwrap(args_docstring)
     comment_sections += [args_docstring]
 
@@ -153,7 +169,7 @@ def make_function_comment(preamble, description, args, link, params,
                     np_line_list.append('\t\t"' + nested_param + '": $(' +
                                         nested_description + ')')
                 np_lines = ',\n'.join(np_line_list)
-                parameter_docstring += '\n' + my_textwrap(np_lines, indent=4)
+                parameter_docstring += '\n' + my_textwrap(np_lines, indent=12)
                 parameter_docstring += '\n    ' + '}'
             else:
                 param_ln = 'KEY "' + param + '": ' + params[param]
@@ -162,6 +178,8 @@ def make_function_comment(preamble, description, args, link, params,
         # my_textwrap should have taken all tabs out of parameter_docstring
         assert('\t' not in parameter_docstring)
         comment_sections += [parameter_docstring]
+
+    comment_sections += ['.NOTES\nOriginal endpoint path =' + call_path]
 
     convert_to_ps_types = {
         'None': '',
@@ -344,6 +362,7 @@ def truncate_func_name(api_calls):
 def make_powershell_script(api_key, api_calls, preamble, options):
     """Make powershell script."""
     module_name = 'MerakiAPI'
+    MakePSModule(module=module_name)
 
     public_func_dir = os.getcwd() + '/' + module_name + '/Functions/Public'
     sample_resp = ''
@@ -357,11 +376,12 @@ def make_powershell_script(api_key, api_calls, preamble, options):
             api_call['func_link'],
             api_call['func_params'],
             api_call['func_return_type'],
+            api_call['path'],
             sample_resp)
         generated_text = make_function(
             func_name=api_call['gen_name'],
             func_desc=api_call_function_comment,
-            func_args=api_call['gen_func_args'],
+            func_args_descs=api_call['func_args'],
             req_http_type=api_call['http_method'],
             url_path=api_call['path']) \
             + '\n'
@@ -370,5 +390,4 @@ def make_powershell_script(api_key, api_calls, preamble, options):
             print('\t- saving ' + api_call['gen_name'] + '.ps1' + ' ...')
             myfile.write(generated_text)
 
-    MakePSModule(module=module_name)
-    print("\npowershell module generated!")
+    print("\nPowershell module generated!")

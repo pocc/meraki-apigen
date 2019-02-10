@@ -12,11 +12,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Meraki-APIgen:
+"""Merakygen:
     Code generator for the Meraki API
 
 USAGE:
-    meraki-merakygen (--key <apikey>) [--language <name>] [--targetapi <api>]
+    merakygen (--key <apikey>) [--language <name>] [--targetapi <api>]
                   [--classy] [--lint] [--textwrap] [--sample-resp]
                   [-h | --help] [-v | --version]
 
@@ -42,7 +42,7 @@ OPTIONS:
 
 SEE ALSO:
     Contact: Ross Jacobs (rosjacob [AT] cisco.com)
-    Github: https://github.com/pocc/meraki-merakygen
+    Github: https://github.com/pocc/merakygen
 """
 import sys
 import subprocess as sp

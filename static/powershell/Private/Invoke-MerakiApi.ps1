@@ -1,4 +1,3 @@
-. ./Utils.ps1
 # Funtion that interacts with the Meraki API
 function Invoke-ApiCall ([string]$httpMethod, [string]$endpointUrl, [string]$params) {
     # Gather/Format API call inputs for Send Request and then call
