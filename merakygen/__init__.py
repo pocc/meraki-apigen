@@ -13,10 +13,17 @@
 # limitations under the License.
 """Package merakygen."""
 import re
+import datetime
 
-__version__ = '0.2.1'
+__version__ = '0.2.2'
+__author__ = 'Ross Jacobs'
+__contact__ = 'rossbjacobs@gmail.com'
 __description__ = 'Generate a module to access the Meraki API in $language'
 __project_url__ = 'https://github.com/pocc/merakygen'
+__tags__ = ["Networking", "Meraki", "API-Wrapper", "API", "Code-Generator"]
+__copyright__ = 'Copyright 2019-' + str(datetime.datetime.now().year) + \
+                ' ' + __author__ + ' All Rights Reserved.'
+__changelog_url__ = __project_url__ + '/blob/master/CHANGELOG.md'
 
 
 def format_changelog():

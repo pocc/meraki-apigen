@@ -121,6 +121,7 @@ def make_function_comment(preamble, description, args, link, params,
     local_args = dict(args)
     for arg in list(local_args):
         local_args[inf.camelize(arg, False)] = local_args[arg]
+        # Remove snake_case arg and use camelCase arg instead
         local_args.pop(arg)
 
     def my_textwrap(text, indent=0):
@@ -303,23 +304,23 @@ class MakePSModule:
         ps_function_list = self.find_ps_functions()
         ps_function_str = self.convert_py_list_to_ps_list(ps_function_list)
         # Cannot supply entire changelog as max for -ReleaseNotes is 840 chars.
-        most_recent_release_notes = merakygen.__changelog__.split('\n\n')[0]
+        author_info = merakygen.__author__ + ' <' + merakygen.__contact__ + '>'
         license_path = '/blob/master/LICENSE.txt'
         powershell_cmd = 'pwsh'
         cmd_list = [
             powershell_cmd, '-Command', 'New-ModuleManifest',
             '-Path', base_filename + self.module + '.psd1',
             '-PowerShellVersion', '5.0',
-            '-Author', 'Ross Jacobs' + ' <rossbjacobs@gmail.com>',
-            '-CompanyName', 'Ross Jacobs',
-            '-Copyright', 'Ross Jacobs 2019 All Rights Reserved.',
+            '-Author', author_info,
+            '-CompanyName', merakygen.__author__,
+            '-Copyright', merakygen.__copyright__,
             '-ModuleVersion', merakygen.__version__,
             '-Description', merakygen.__description__,
-            '-Tags', '@("Meraki", "API", "Networking")',
+            '-Tags', '@(' + ', '.join(merakygen.__tags__) + ')',
             '-HelpInfoUri', merakygen.__project_url__,
             '-ProjectUri', merakygen.__project_url__,
             '-LicenseUri', merakygen.__project_url__ + license_path,
-            '-ReleaseNotes', most_recent_release_notes,
+            '-ReleaseNotes', merakygen.__changelog__,
             '-FunctionsToExport', ps_function_str,
             '-RootModule', base_filename + self.module + '.psm1',
         ]
@@ -361,7 +362,7 @@ def truncate_func_name(api_calls):
 
 def make_powershell_script(api_key, api_calls, preamble, options):
     """Make powershell script."""
-    module_name = 'MerakiAPI'
+    module_name = 'ps_merakygen'
     MakePSModule(module=module_name)
 
     public_func_dir = os.getcwd() + '/' + module_name + '/Functions/Public'

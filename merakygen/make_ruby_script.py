@@ -15,8 +15,7 @@
 """Generate ruby script."""
 import re
 import textwrap
-
-import inflection as inf
+import os
 
 
 def make_ruby_function(func_name, func_desc, func_args,
@@ -28,10 +27,10 @@ def make_ruby_function(func_name, func_desc, func_args,
     if func_args:  # If there is more than the function description, +newline
         func_desc += '\n    '
     if 'params' in func_args:
-        func_args = func_args.replace('params', 'params=nil')
+        func_args = func_args.replace('params', 'params={}')
         if params_should_be_in_url:
-            func_urlencoded_query = """
-    url_query = URI::encode(params)"""
+            func_urlencoded_query = '  url_query = URI::encode(params)\n'
+            req_path += "#{url_query}"
             # Add additional format variable for params arg to be sent in
             req_data = '[]'
         else:  # req_http_type in ['PUT', 'POST'], data in requests body
@@ -86,9 +85,6 @@ def make_yard_docstring(description, args, link, params,
     """
     ruby_docstring_width = 120 - len('# ')
     # Translate all variable names into camelCase
-    for arg in args:
-        args[inf.camelize(arg, False)] = args[arg]
-        args.pop(arg)
 
     def my_textwrap(text, indent=2):
         """Wrap text with specific settings."""
@@ -147,14 +143,45 @@ def make_yard_docstring(description, args, link, params,
     return func_docstring
 
 
+class MakeRubyGem:
+    """Make a folder that contains the ruby script and supporting files."""
+    def __init__(self, gem, script_text):
+        self.gem_name = gem
+        self.script_text = script_text
+
+        self.make_gem_scaffolding()
+        self.save_static_files()
+        self.save_script()
+
+    def make_gem_scaffolding(self):
+        """Make the gem directory structure."""
+        folders = [self.gem_name]
+        for folder in folders:
+            if not os.path.isdir(folder):
+                os.makedirs(folder)
+
+    def save_static_files(self):
+        """Save supporting files like .rubocop.yml."""
+        rubocop_text = """AllCops:\n  TargetRubyVersion: 2.3.3"""
+        with open(self.gem_name + '/.rubocop.yml', 'w') as myfile:
+            myfile.write(rubocop_text)
+
+    def save_script(self):
+        """Save all files."""
+        with open(self.gem_name + '/' + self.gem_name + '.rb', 'w') as myfile:
+            print('\t- saving ' + self.gem_name + '...')
+            myfile.write(self.script_text)
+
+
 def make_ruby_script(api_key, api_calls, preamble, options):
     """Make ruby script."""
     # Indent preamble heredoc exactly 2 spaces
-    preamble = ('  ' + re.sub(r'\n[ ]*', '\n  ', preamble))[:-2]
-    output_file = 'meraki_api.rb'
+    preamble = '  ' + re.sub(r'\n[ ]*', '\n  ', preamble)
+    gem_name = 'pacg_meraki'
     generated_text = """\
-<<-HEREDOC
-{}HEREDOC
+<<~HEREDOC
+{}
+HEREDOC
 
 require 'net/http'
 require 'uri'
@@ -185,7 +212,7 @@ def api_call(http_method, url, options, limit = 2)
     raise ArgumentError, 'Invalid HTTP method'
   end
   request['Content-Type'] = 'application/json'
-  request['X-Cisco-Meraki-Api-Key'] = {}
+  request['X-Cisco-Meraki-Api-Key'] = '{}'
   request['User-Agent'] = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36  (KHTML, like Gecko) Chrome/59.0.3071.86 Safari/537.36'
   response = http.request(request)
 
@@ -221,8 +248,5 @@ end
             req_http_type=api_call['http_method'],
             req_path=api_call['path']) \
             + whitespace_between_functions
-    with open(output_file, 'w') as myfile:
-        print('\t- saving ' + output_file + '...')
-        myfile.write(generated_text)
-
+    MakeRubyGem(gem='pacg_meraki', script_text=generated_text)
     print("\nRuby module generated!")

@@ -1,5 +1,9 @@
-# Meraki API Code Generator
-Generates a $language module out of the existing Meraki API docs webpage. 
+# Python API Code Generator
+Generates a $language module out of the existing API docs webpage. 
+Model is that API docs page is the source of truth, and that libraries 
+should depend upon that.  
+
+Target APIs are currently Meraki and Trello.
 
 ## Problem
 The Meraki API is constantly adding API calls. Projects exist in multiple
@@ -29,12 +33,12 @@ generated code.
 #### --textwrap
 Wrap text according to the style guide for $language.
 
-**Max Line Length**
+*Max Line Length*
 * Python: 79
 * Ruby: 120
 * Powershell: 100
 
-**Indentation**
+*Indentation*
 * Python: 4 spaces
 * Ruby: 2 spaces
 * Powershell: 4 spaces

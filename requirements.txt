@@ -3,3 +3,5 @@ yapf
 pylint
 docopt
 inflection
+cookiecutter
+bs4

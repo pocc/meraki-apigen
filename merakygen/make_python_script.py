@@ -15,6 +15,7 @@
 """Generate python script."""
 import re
 import textwrap
+import os
 
 import yapf
 import pylint.lint as pylinter
@@ -191,6 +192,35 @@ def make_google_style_docstring(description, args, link, params,
     return func_docstring
 
 
+class MakePythonModule:
+    """Make a folder that contains the python script and supporting files."""
+    def __init__(self, module, script_text):
+        self.module_name = module
+        self.script_text = script_text
+
+        self.make_python_scaffolding()
+        self.save_static_files()
+        self.save_script()
+
+    def make_python_scaffolding(self):
+        """Make the gem directory structure."""
+        folders = [self.module_name]
+        for folder in folders:
+            if not os.path.isdir(folder):
+                os.makedirs(folder)
+
+    def save_static_files(self):
+        """Save supporting files (todo save files here)"""
+        pass
+
+    def save_script(self):
+        """Save all files."""
+        filename = self.module_name + '/' + self.module_name + '.py'
+        with open(filename, 'w') as myfile:
+            print('\t- saving ' + self.module_name + '...')
+            myfile.write(self.script_text)
+
+
 def make_python_script(api_key, api_calls, preamble, options):
     """Make python script."""
     output_file = 'meraki_api.py'
@@ -256,9 +286,7 @@ def graceful_exit(response):
                 req_http_type=api_call['http_method'],
                 req_url_format=api_call['gen_formatted_url']) \
                 + whitespace_between_functions
-    with open(output_file, 'w') as myfile:
-        print('\t- saving ' + output_file + '...')
-        myfile.write(generated_text)
+    MakePythonModule('pacg_meraki', generated_text)
     if '--textwrap' in options:
         print('\t- text wrapping ' + output_file + '...')
         yapf.yapf_api.FormatFile(

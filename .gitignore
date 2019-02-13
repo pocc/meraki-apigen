@@ -8,6 +8,7 @@ merakygen/api.json
 
 # Exclude meraki_api.* unless it is in examples/
 meraki_api.*
+pacg_*/
 !generated/*
 
 # Byte-compiled / optimized / DLL files

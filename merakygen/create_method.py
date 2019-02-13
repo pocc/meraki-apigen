@@ -19,7 +19,7 @@ import collections
 
 import inflection as inf
 
-from merakygen import __version__ as apigen_version
+import merakygen
 import merakygen.create_function_docstring as docs
 
 API_BASE_URL = 'https://api.meraki.com/api/v0'
@@ -47,10 +47,12 @@ Meraki API Generator v{}
     API calls: {} {}
 
 More Info
-    Author: Ross Jacobs (rosjacob [AT] cisco.com)
-    Github: https://github.com/pocc/merakygen
-    Issues: https://github.com/pocc/merakygen/issues\
-""".format(date, options_str,  apigen_version, lang, num_api_calls, http_stats)
+    Author: {} ({})
+    Github: {}
+    Issues: {}\
+""".format(date, options_str,  merakygen.__version__, lang, num_api_calls,
+           http_stats, merakygen.__author__, merakygen.__contact__,
+           merakygen.__project_url__, merakygen.__project_url__ + '/issues')
     return header
 
 
